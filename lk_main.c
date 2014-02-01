@@ -617,6 +617,18 @@ void addEvent_Dw ( IRSB* sb, IRAtom* daddr, Int dsize )
    events_used++;
 }
 
+// stuff for --trace-register
+
+static void trace_put(Int offset)
+{
+	VG_(printf)(" P %d\n", offset);
+}
+
+static void trace_get(Int offset)
+{
+	VG_(printf)(" G %d\n", offset);
+}
+
 
 /*------------------------------------------------------------*/
 /*--- Stuff for --trace-superblocks                        ---*/
@@ -659,6 +671,7 @@ IRSB* lk_instrument ( VgCallbackClosure* closure,
    Addr       iaddr = 0, dst;
    UInt       ilen = 0;
    Bool       condition_inverted = False;
+   IRExpr**   argv;
 
    if (gWordTy != hWordTy) {
       /* We don't currently support this case. */
@@ -712,11 +725,22 @@ IRSB* lk_instrument ( VgCallbackClosure* closure,
       switch (st->tag) {
          case Ist_NoOp:
          case Ist_AbiHint:
-         case Ist_Put:
-         case Ist_PutI:
          case Ist_MBE:
             addStmtToIRSB( sbOut, st );
             break;
+
+         case Ist_Put:
+		 argv = mkIRExprVec_1( mkIRExpr_HWord( st->Ist.Put.offset ) );
+		 di = unsafeIRDirty_0_N( 0, "trace_put",
+		 			 VG_(fnptr_to_fnentry)( &trace_put ),
+					 argv);
+		 addStmtToIRSB( sbOut, IRStmt_Dirty(di) );
+
+		 addStmtToIRSB( sbOut, st );
+		 break;
+         case Ist_PutI:
+		 addStmtToIRSB( sbOut, st );
+		 break;
 
          case Ist_IMark:
             if (clo_basic_counts) {
@@ -772,6 +796,14 @@ IRSB* lk_instrument ( VgCallbackClosure* closure,
                   addEvent_Dr( sbOut, data->Iex.Load.addr,
                                sizeofIRType(data->Iex.Load.ty) );
                }
+	       if (data->tag == Iex_Get) {
+		 argv = mkIRExprVec_1( mkIRExpr_HWord( data->Iex.Get.offset ) );
+		 di = unsafeIRDirty_0_N( 0, "trace_get",
+		 			 VG_(fnptr_to_fnentry)( &trace_get ),
+					 argv);
+		 addStmtToIRSB( sbOut, IRStmt_Dirty(di) );		       
+	       }
+
             }
             if (clo_detailed_counts) {
                IRExpr* expr = st->Ist.WrTmp.data;
