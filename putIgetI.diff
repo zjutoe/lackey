@@ -1,0 +1,58 @@
+diff --git a/lk_main.c b/lk_main.c
+index 99bf2c2..e96bc56 100644
+--- a/lk_main.c
++++ b/lk_main.c
+@@ -629,6 +629,16 @@ static void trace_get(Int offset)
+ 	VG_(printf)(" G %d\n", offset);
+ }
+ 
++static void trace_putI(Int ix, Int offset)
++{
++	VG_(printf)(" pi %d:%d\n", ix, offset);
++}
++
++static void trace_getI(Int ix, Int offset)
++{
++	VG_(printf)(" gi %d:%d\n", ix, offset);
++}
++
+ 
+ /*------------------------------------------------------------*/
+ /*--- Stuff for --trace-superblocks                        ---*/
+@@ -739,7 +749,16 @@ IRSB* lk_instrument ( VgCallbackClosure* closure,
+ 		 addStmtToIRSB( sbOut, st );
+ 		 break;
+          case Ist_PutI:
+-		 addStmtToIRSB( sbOut, st );
++		 {
++			 IRPutI* details = st->Ist.PutI.details;
++			 argv = mkIRExprVec_2( details->ix, mkIRExpr_HWord(details->bias) );
++			 di = unsafeIRDirty_0_N( 0, "trace_putI",
++						 VG_(fnptr_to_fnentry)( &trace_putI ),
++						 argv);
++			 addStmtToIRSB( sbOut, IRStmt_Dirty(di) );
++			 
++			 addStmtToIRSB( sbOut, st );
++		 }
+ 		 break;
+ 
+          case Ist_IMark:
+@@ -799,10 +818,17 @@ IRSB* lk_instrument ( VgCallbackClosure* closure,
+ 	       if (data->tag == Iex_Get) {
+ 		 argv = mkIRExprVec_1( mkIRExpr_HWord( data->Iex.Get.offset ) );
+ 		 di = unsafeIRDirty_0_N( 0, "trace_get",
+-		 			 VG_(fnptr_to_fnentry)( &trace_get ),
++					 VG_(fnptr_to_fnentry)( &trace_get ),
+ 					 argv);
+ 		 addStmtToIRSB( sbOut, IRStmt_Dirty(di) );		       
+ 	       }
++	       if (data->tag == Iex_GetI) {
++		  argv = mkIRExprVec_2( data->Iex.GetI.ix, mkIRExpr_HWord(data->Iex.GetI.bias) );
++		  di = unsafeIRDirty_0_N( 0, "trace_getI",
++					  VG_(fnptr_to_fnentry)( &trace_getI ),
++					  argv);
++		  addStmtToIRSB( sbOut, IRStmt_Dirty(di) );
++	       }
+ 
+             }
+             if (clo_detailed_counts) {
