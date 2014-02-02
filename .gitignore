@@ -26,3 +26,4 @@ docs
 *.out
 *.app
 
+*.log

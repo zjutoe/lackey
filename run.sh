@@ -1,4 +1,4 @@
 #!/bin/bash
 
-valgrind --tool=lackey --trace-mem=yes --trace-superblocks=yes $@
+valgrind --log-file="$1".log --tool=lackey --trace-mem=yes --trace-superblocks=yes $@
 
