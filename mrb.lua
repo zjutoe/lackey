@@ -193,7 +193,7 @@ function issue_sb(rob)
       end      
 
       -- TODO add a switch verbose or terse
-      print(Core.clocks, w_sum, w_max, width, w_sum/w_max)
+      logd(Core.clocks, w_sum, w_max, width, w_sum/w_max)
    end
 end
 
@@ -239,12 +239,13 @@ function parse_lackey_log(sb_size, sb_merge)
 	       weight_accu = 0
 	    end
 	 elseif k == ' S' then
-	    mem_writer[lua_tonumber(line:sub(4,11))] = sb
-	    -- TODO size = lua_tonumber(line:sub(12)))
+	    mem_writer[tonumber(line:sub(4,11), 16)] = sb
+	    -- TODO size = tonumber(line:sub(12)))
 	 elseif k == ' L' then
-	    add_depended(mem_writer[lua_tonumber(line:sub(4,11))])
-	    -- elseif k == ' D' then
-	    --    add_depended(line:sub(4))
+	    local dep = mem_writer[tonumber(line:sub(4,11), 16)]
+	    if dep then add_depended(dep) end
+	 -- elseif k == ' D' then
+	 --    add_depended(line:sub(4))
 	 elseif k == ' W' then
 	    weight_accu = weight_accu + tonumber(line:sub(4))
 	 end
