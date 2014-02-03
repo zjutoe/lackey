@@ -238,6 +238,7 @@ static ULong n_SBs_entered   = 0;
 static ULong n_SBs_completed = 0;
 static ULong n_IRStmts       = 0;
 static ULong n_guest_instrs  = 0;
+static Int n_guest_instrs_sb = 0;
 static ULong n_Jccs          = 0;
 static ULong n_Jccs_untaken  = 0;
 static ULong n_IJccs         = 0;
@@ -266,6 +267,7 @@ static void add_one_IRStmt(void)
 static void add_one_guest_instr(void)
 {
    n_guest_instrs++;
+   n_guest_instrs_sb++;
 }
 
 static void add_one_Jcc(void)
@@ -636,7 +638,9 @@ static void trace_get(Int offset)
 
 static void trace_superblock(Addr addr)
 {
+   VG_(printf)(" W %d\n", n_guest_instrs_sb);
    VG_(printf)("SB %08lx\n", addr);
+   n_guest_instrs_sb = 0;
 }
 
 
