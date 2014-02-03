@@ -96,6 +96,8 @@ end
 
 -- to record which SB writes to a specific memory address
 local mem_writer = {}
+-- to record which SB writes to a specific register
+local reg_writer = {}
 
 
 local sb_addr = 0
@@ -205,7 +207,11 @@ function end_sb()
    sb['w'] = sb_weight
    sb['deps'] = deps
    sbs[sb_addr] = sb
-
+   io.write(sb_addr.."=>")
+   for k, v in pairs(deps) do
+      io.write(k.." ")
+   end
+   print('')
    place_sb(rob, sb)
    issue_sb(rob)
 
@@ -216,7 +222,7 @@ end				-- function end_sb()
 -- efficient
 function add_depended(addr)
    deps[addr] = sbs[addr]
-   logd('add_depended:', addr)
+   print('add_depended:', addr)
 end
 
 function set_sb_weight(w)
@@ -239,10 +245,15 @@ function parse_lackey_log(sb_size, sb_merge)
 	       weight_accu = 0
 	    end
 	 elseif k == ' S' then
-	    mem_writer[tonumber(line:sub(4,11), 16)] = sb
+	    mem_writer[tonumber(line:sub(4,11), 16)] = sb_addr
 	    -- TODO size = tonumber(line:sub(12)))
 	 elseif k == ' L' then
 	    local dep = mem_writer[tonumber(line:sub(4,11), 16)]
+	    if dep then add_depended(dep) end
+	 elseif k == ' P' then
+	    reg_writer[tonumber(line:sub(4))] = sb_addr
+	 elseif k == ' G' then
+	    local dep = reg_writer[tonumber(line:sub(4))]
 	    if dep then add_depended(dep) end
 	 -- elseif k == ' D' then
 	 --    add_depended(line:sub(4))
