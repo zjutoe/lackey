@@ -122,6 +122,7 @@ end
 
 -- we are entering a new superblock
 function start_sb(addr)
+   print("SB "..addr)
    sb_addr = addr
 end
 
@@ -249,12 +250,18 @@ function parse_lackey_log(sb_size, sb_merge)
 	    -- TODO size = tonumber(line:sub(12)))
 	 elseif k == ' L' then
 	    local dep = mem_writer[tonumber(line:sub(4,11), 16)]
-	    if dep then add_depended(dep) end
+	    if dep and dep ~= sb_addr then 
+	       io.write("L "..line:sub(4,11).." ")
+	       add_depended(dep) 
+	    end
 	 elseif k == ' P' then
 	    reg_writer[tonumber(line:sub(4))] = sb_addr
 	 elseif k == ' G' then
 	    local dep = reg_writer[tonumber(line:sub(4))]
-	    if dep then add_depended(dep) end
+	    if dep and dep ~= sb_addr then 
+	       io.write("G "..line:sub(4).." ")
+	       add_depended(dep) 
+	    end
 	 -- elseif k == ' D' then
 	 --    add_depended(line:sub(4))
 	 elseif k == ' W' then
