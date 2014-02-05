@@ -99,11 +99,16 @@ local mem_writer = {}
 -- to record which SB writes to a specific register
 local reg_writer = {}
 
+-- data input of the current SB
+local mem_input = {}
+local reg_input = {}
+
 
 local sb_addr = 0
--- the collection of the predecessors of the current sb
+-- the SB on which the current sb depends
 local deps = {}
 local sb_weight = 0
+
 -- collection of all the buffered sb's, key is the addr, val is the sb
 local sbs = {}
 
