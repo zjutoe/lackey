@@ -212,16 +212,27 @@ function end_sb()
    sb['addr'] = sb_addr
    sb['w'] = sb_weight
    sb['deps'] = deps
+
+   local d_entangle_mem, d_entangle_reg = 0, 0
+   for k, v in pairs(mem_input) do
+      d_entangle_mem = d_entangle_mem + v
+   end
+   for k, v in pairs(reg_input) do
+      d_entangle_reg = d_entangle_reg + v
+   end   
+
    sbs[sb_addr] = sb
-   io.write(sb_addr.."=>")
+   io.write(sb_addr.."<=")
    for k, v in pairs(deps) do
       io.write(k.." ")
    end
-   print('')
+   print(' M:'..d_entangle_mem..' R:'..d_entangle_reg)
    place_sb(rob, sb)
    issue_sb(rob)
 
    deps = {}
+   mem_input = {}
+   reg_input = {}
 end				-- function end_sb()
 
 -- the table deps is a set, we use addr as key, so searching it is
@@ -252,20 +263,23 @@ function parse_lackey_log(sb_size, sb_merge)
 	    end
 	 elseif k == ' S' then
 	    mem_writer[tonumber(line:sub(4,11), 16)] = sb_addr
-	    -- TODO size = tonumber(line:sub(12)))
 	 elseif k == ' L' then
-	    local dep = mem_writer[tonumber(line:sub(4,11), 16)]
+	    local d_addr = tonumber(line:sub(4,11), 16)
+	    local dep = mem_writer[d_addr]
 	    if dep and dep ~= sb_addr then 
 	       io.write("L "..line:sub(4,11).." ")
 	       add_depended(dep) 
+	       mem_input[d_addr] = tonumber(line:sub(13))
 	    end
 	 elseif k == ' P' then
 	    reg_writer[tonumber(line:sub(4))] = sb_addr
 	 elseif k == ' G' then
-	    local dep = reg_writer[tonumber(line:sub(4))]
+	    local d_addr = tonumber(line:sub(4))
+	    local dep = reg_writer[d_addr]
 	    if dep and dep ~= sb_addr then 
 	       io.write("G "..line:sub(4).." ")
 	       add_depended(dep) 
+	       reg_input[d_addr] = 1
 	    end
 	 -- elseif k == ' D' then
 	 --    add_depended(line:sub(4))
