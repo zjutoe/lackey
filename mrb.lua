@@ -213,20 +213,23 @@ function end_sb()
    sb['w'] = sb_weight
    sb['deps'] = deps
 
-   local d_entangle_mem, d_entangle_reg = 0, 0
+   local dep_mem_cnt, dep_reg_cnt = 0, 0
    for k, v in pairs(mem_input) do
-      d_entangle_mem = d_entangle_mem + v
+      dep_mem_cnt = dep_mem_cnt + v
    end
    for k, v in pairs(reg_input) do
-      d_entangle_reg = d_entangle_reg + v
+      dep_reg_cnt = dep_reg_cnt + v
    end   
+
+   sb.dep_mem_cnt = dep_mem_cnt
+   sb.dep_reg_cnt = dep_reg_cnt
 
    sbs[sb_addr] = sb
    io.write(sb_addr.."<=")
    for k, v in pairs(deps) do
       io.write(k.." ")
    end
-   print(' M:'..d_entangle_mem..' R:'..d_entangle_reg)
+   print(' M:'..dep_mem_cnt..' R:'..dep_reg_cnt)
    place_sb(rob, sb)
    issue_sb(rob)
 
@@ -268,7 +271,7 @@ function parse_lackey_log(sb_size, sb_merge)
 	    local dep = mem_writer[d_addr]
 	    if dep and dep ~= sb_addr then 
 	       io.write("L "..line:sub(4,11).." ")
-	       add_depended(dep) 
+	       -- add_depended(dep) 
 	       mem_input[d_addr] = tonumber(line:sub(13))
 	    end
 	 elseif k == ' P' then
