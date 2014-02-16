@@ -99,11 +99,16 @@ local mem_writer = {}
 -- to record which SB writes to a specific register
 local reg_writer = {}
 
+-- data input of the current SB
+local mem_input = {}
+local reg_input = {}
+
 
 local sb_addr = 0
--- the collection of the predecessors of the current sb
+-- the SB on which the current sb depends
 local deps = {}
 local sb_weight = 0
+
 -- collection of all the buffered sb's, key is the addr, val is the sb
 local sbs = {}
 
@@ -122,6 +127,7 @@ end
 
 -- we are entering a new superblock
 function start_sb(addr)
+   print("SB "..addr)
    sb_addr = addr
 end
 
@@ -206,16 +212,30 @@ function end_sb()
    sb['addr'] = sb_addr
    sb['w'] = sb_weight
    sb['deps'] = deps
+
+   local dep_mem_cnt, dep_reg_cnt = 0, 0
+   for k, v in pairs(mem_input) do
+      dep_mem_cnt = dep_mem_cnt + v
+   end
+   for k, v in pairs(reg_input) do
+      dep_reg_cnt = dep_reg_cnt + v
+   end   
+
+   sb.dep_mem_cnt = dep_mem_cnt
+   sb.dep_reg_cnt = dep_reg_cnt
+
    sbs[sb_addr] = sb
-   io.write(sb_addr.."=>")
+   io.write(sb_addr.."<=")
    for k, v in pairs(deps) do
       io.write(k.." ")
    end
-   print('')
+   print(' M:'..dep_mem_cnt..' R:'..dep_reg_cnt)
    place_sb(rob, sb)
    issue_sb(rob)
 
    deps = {}
+   mem_input = {}
+   reg_input = {}
 end				-- function end_sb()
 
 -- the table deps is a set, we use addr as key, so searching it is
@@ -246,15 +266,24 @@ function parse_lackey_log(sb_size, sb_merge)
 	    end
 	 elseif k == ' S' then
 	    mem_writer[tonumber(line:sub(4,11), 16)] = sb_addr
-	    -- TODO size = tonumber(line:sub(12)))
 	 elseif k == ' L' then
-	    local dep = mem_writer[tonumber(line:sub(4,11), 16)]
-	    if dep then add_depended(dep) end
+	    local d_addr = tonumber(line:sub(4,11), 16)
+	    local dep = mem_writer[d_addr]
+	    if dep and dep ~= sb_addr then 
+	       io.write("L "..line:sub(4,11).." ")
+	       -- add_depended(dep) 
+	       mem_input[d_addr] = tonumber(line:sub(13))
+	    end
 	 elseif k == ' P' then
 	    reg_writer[tonumber(line:sub(4))] = sb_addr
 	 elseif k == ' G' then
-	    local dep = reg_writer[tonumber(line:sub(4))]
-	    if dep then add_depended(dep) end
+	    local d_addr = tonumber(line:sub(4))
+	    local dep = reg_writer[d_addr]
+	    if dep and dep ~= sb_addr then 
+	       io.write("G "..line:sub(4).." ")
+	       add_depended(dep) 
+	       reg_input[d_addr] = 1
+	    end
 	 -- elseif k == ' D' then
 	 --    add_depended(line:sub(4))
 	 elseif k == ' W' then
