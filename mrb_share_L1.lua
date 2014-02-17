@@ -311,6 +311,6 @@ for i=1, Core.num do
    inst_total_sum = inst_total_sum + Core[i].inst_total
 end
 
-print ("## c/s/d=" .. core_num .. "/" .. sb_size .. "/" .. rob_d .. ":", "execute " .. inst_total_sum .. " insts in " .. Core.clocks .. ": ", inst_total_sum/Core.clocks)
+print ("## c/s/d=" .. core_num .. "/" .. sb_size .. "/" .. rob_d .. ":", "execute " .. inst_total_sum .. " insts in " .. Core.clocks .. " clks: ", inst_total_sum/Core.clocks)
 
 --Prof.stop()
