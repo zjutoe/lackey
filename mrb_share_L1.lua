@@ -13,14 +13,18 @@ function logd(...)
    -- print(...)
 end
 
+local reg_rename_tab = {}
+
 -- Core
 -- to manage all the cores in the processor
 Core = {num=0, clocks=0}
 function Core.new()
    local core_id = Core.num + 1
    local core = {id=core_id, inst_total=0, inst_pend=0, sb_cnt=0}
+
    Core[core_id] = core
    Core.num = Core.num + 1
+
    return core
 end
 
@@ -99,6 +103,7 @@ local reg_writer = {}
 
 -- data input of the current SB
 local reg_input = {}
+local reg_output = {}
 
 
 local sb_addr = 0
@@ -178,8 +183,8 @@ function issue_sb(rob)
       Core.run()
 
       -- TODO add a switch verbose or terse
-      logd('issue:')      
-      
+      logd('issue:')
+
       for k, v in pairs(l) do
 	 width = width + 1
 	 -- TODO add a switch verbose or terse
@@ -194,11 +199,30 @@ function issue_sb(rob)
 	 core.inst_pend = core.inst_pend + v.w
 	 core.sb_cnt = core.sb_cnt + 1
 
+	 -- it's garanteed there's no register write conflict in a
+	 -- line of SB
+	 for _, r in ipairs(v.reg_output) do
+	    reg_rename_tab[r] = core.id
+	 end
+
+	 local reg_sync_sum = 0
+	 for _, r in ipairs(v.reg_input) do
+	    if reg_rename_tab[r] ~= core.id then
+	       reg_sync_sum = reg_sync_sum + 1
+	    end
+	 end
+
+	 print("SB "..v.addr.." issued to core "..core.id.." reg_sync= "..reg_sync_sum.."/"..#v.reg_input)
+	 
 	 sbs[v.addr] = nil
       end      
 
       -- TODO add a switch verbose or terse
       logd(Core.clocks, w_sum, w_max, width, w_sum/w_max)
+      print("reg_rename_tab")
+      for k, v in pairs(reg_rename_tab) do
+	 print(k, v)
+      end
    end
 end
 
@@ -209,26 +233,28 @@ function end_sb()
    sb['addr'] = sb_addr
    sb['w'] = sb_weight
    sb['deps'] = deps
+   sb.reg_input = reg_input
+   sb.reg_output = reg_output
 
-   local dep_reg_cnt = 0, 0
-   for k, v in pairs(reg_input) do
-      dep_reg_cnt = dep_reg_cnt + v
-   end   
+   -- local dep_reg_cnt = 0, 0
+   -- for k, v in pairs(reg_input) do
+   --    dep_reg_cnt = dep_reg_cnt + v
+   -- end   
 
-   sb.dep_reg_cnt = dep_reg_cnt
+   -- sb.dep_reg_cnt = dep_reg_cnt
 
    sbs[sb_addr] = sb
    io.write(sb_addr.."<=")
    for k, v in pairs(deps) do
       io.write(k.." ")
    end
-   print(' R:'..dep_reg_cnt)
+   print(' R:'..#reg_input)
    place_sb(rob, sb)
    issue_sb(rob)
 
    deps = {}
-   mem_input = {}
    reg_input = {}
+   reg_output = {}
 end				-- function end_sb()
 
 -- the table deps is a set, we use addr as key, so searching it is
@@ -257,14 +283,17 @@ function parse_lackey_log(sb_size)
 	       weight_accu = 0
 	    end
 	 elseif k == ' P' then
-	    reg_writer[tonumber(line:sub(4))] = sb_addr
+	    local reg_no = tonumber(line:sub(4))
+	    reg_writer[reg_no] = sb_addr
+	    reg_output[#reg_output + 1] = reg_no
+	    
 	 elseif k == ' G' then
-	    local d_addr = tonumber(line:sub(4))
-	    local dep = reg_writer[d_addr]
+	    local reg_no = tonumber(line:sub(4))
+	    local dep = reg_writer[reg_no]
 	    if dep and dep ~= sb_addr then 
-	       io.write("G "..line:sub(4).." ")
+	       io.write("G "..reg_no.." ")
 	       add_depended(dep) 
-	       reg_input[d_addr] = 1
+	       reg_input[#reg_input + 1] = reg_no
 	    end
 	 elseif k == ' W' then
 	    weight_accu = weight_accu + tonumber(line:sub(4))
