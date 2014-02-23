@@ -170,6 +170,7 @@ function place_sb(rob, sb)
 
 end				-- function place_sb(rob, sb)
 
+
 -- issue a line of sb's from the rob when necessary
 function issue_sb(rob)
    local buf = rob.buf
@@ -219,7 +220,7 @@ function issue_sb(rob)
 	 sbs[v.addr] = nil
       end      
 
-      print(w_max, w_sum, width, reg_sync_sum_line, reg_sync_sum_line/(width*w_max))
+      print(Core.clocks, w_sum, width, reg_sync_sum_line, reg_sync_sum_line/(width*w_max))
 
       -- TODO add a switch verbose or terse
       logd(Core.clocks, w_sum, w_max, width, w_sum/w_max)
