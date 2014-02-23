@@ -1,5 +1,5 @@
 *~
-#*#
+\#*\#
 .svn
 .deps
 
@@ -27,3 +27,7 @@ docs
 *.app
 
 *.log
+
+*.eps
+*.pdf
+.DS_Store
