@@ -129,7 +129,7 @@ end
 
 -- we are entering a new superblock
 function start_sb(addr)
-   print("SB "..addr)
+   logd("SB "..addr)
    sb_addr = addr
 end
 
@@ -184,6 +184,7 @@ function issue_sb(rob)
 
       -- TODO add a switch verbose or terse
       logd('issue:')
+      local reg_sync_sum_line = 0
 
       for k, v in pairs(l) do
 	 width = width + 1
@@ -212,16 +213,19 @@ function issue_sb(rob)
 	    end
 	 end
 
-	 print("SB "..v.addr.." issued to core "..core.id.." reg_sync= "..reg_sync_sum.."/"..#v.reg_input)
+	 logd("SB "..v.addr.." issued to core "..core.id.." reg_sync= "..reg_sync_sum.."/"..#v.reg_input)
+	 reg_sync_sum_line = reg_sync_sum_line + reg_sync_sum
 	 
 	 sbs[v.addr] = nil
       end      
 
+      print(w_max, w_sum, width, reg_sync_sum_line, reg_sync_sum_line/(width*w_max))
+
       -- TODO add a switch verbose or terse
       logd(Core.clocks, w_sum, w_max, width, w_sum/w_max)
-      print("reg_rename_tab")
+      logd("reg_rename_tab")
       for k, v in pairs(reg_rename_tab) do
-	 print(k, v)
+	 logd(k, v)
       end
    end
 end
@@ -236,19 +240,12 @@ function end_sb()
    sb.reg_input = reg_input
    sb.reg_output = reg_output
 
-   -- local dep_reg_cnt = 0, 0
-   -- for k, v in pairs(reg_input) do
-   --    dep_reg_cnt = dep_reg_cnt + v
-   -- end   
-
-   -- sb.dep_reg_cnt = dep_reg_cnt
-
    sbs[sb_addr] = sb
-   io.write(sb_addr.."<=")
-   for k, v in pairs(deps) do
-      io.write(k.." ")
-   end
-   print(' R:'..#reg_input)
+   -- io.write(sb_addr.."<=")
+   -- for k, v in pairs(deps) do
+   --    io.write(k.." ")
+   -- end
+   -- logd(' R:'..#reg_input)
    place_sb(rob, sb)
    issue_sb(rob)
 
@@ -261,7 +258,7 @@ end				-- function end_sb()
 -- efficient
 function add_depended(addr)
    deps[addr] = sbs[addr]
-   print('add_depended:', addr)
+   logd('add_depended:', addr)
 end
 
 function set_sb_weight(w)
@@ -291,7 +288,7 @@ function parse_lackey_log(sb_size)
 	    local reg_no = tonumber(line:sub(4))
 	    local dep = reg_writer[reg_no]
 	    if dep and dep ~= sb_addr then 
-	       io.write("G "..reg_no.." ")
+	       -- io.write("G "..reg_no.." ")
 	       add_depended(dep) 
 	       reg_input[#reg_input + 1] = reg_no
 	    end
@@ -330,6 +327,9 @@ for i=1, core_num do
 end
 
 init_rob(rob, rob_d, core_num)
+
+print("## clock  insts  width, reg_sync, sync/core")
+
 parse_lackey_log(sb_size)
 
 -- summarize
