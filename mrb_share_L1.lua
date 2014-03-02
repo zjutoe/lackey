@@ -17,7 +17,7 @@ local reg_rename_tab = {}
 
 -- Core
 -- to manage all the cores in the processor
-Core = {num=0, clocks=0}
+Core = {num=0, clocks=0, regsync_push=0, regsync_pull=0}
 function Core.new()
    local core_id = Core.num + 1
    local core = {id=core_id, inst_total=0, inst_pend=0, sb_cnt=0}
@@ -185,7 +185,7 @@ function issue_sb(rob)
 
       -- TODO add a switch verbose or terse
       logd('issue:')
-      local reg_sync_sum_line = 0
+      local reg_sync_push_line, reg_sync_pull_line = 0, 0
 
       for k, v in pairs(l) do
 	 width = width + 1
@@ -203,25 +203,37 @@ function issue_sb(rob)
 
 	 -- it's garanteed there's no register write conflict in a
 	 -- line of SB
+	 local reg_output = {}
 	 for _, r in ipairs(v.reg_output) do
 	    reg_rename_tab[r] = core.id
+	    reg_output[r] = 1
 	 end
 
-	 local reg_sync_sum = 0
+	 local reg_input = {}
 	 for _, r in ipairs(v.reg_input) do
+	    reg_input[r] = 1
+	 end
+
+	 local reg_sync_push, reg_sync_pull = 0, 0
+	 for r, _ in pairs(reg_output) do
+	    reg_sync_push = reg_sync_push + 1
+	 end
+	 for r, _ in pairs(reg_input) do
 	    if reg_rename_tab[r] ~= core.id then
-	       reg_sync_sum = reg_sync_sum + 1
+	       reg_sync_pull = reg_sync_pull + 1
 	    end
 	 end
 
-	 logd("SB "..v.addr.." issued to core "..core.id.." reg_sync= "..reg_sync_sum.."/"..#v.reg_input)
-	 reg_sync_sum_line = reg_sync_sum_line + reg_sync_sum
+	 logd("SB "..v.addr.." issued to core "..core.id.." reg_sync_push= "..reg_sync_push.."/"..#v.reg_output.." reg_sync_pull= "..reg_sync_pull.."/"..#v.reg_input)
+	 reg_sync_push_line = reg_sync_push_line + reg_sync_push
+	 reg_sync_pull_line = reg_sync_pull_line + reg_sync_pull
 	 
 	 sbs[v.addr] = nil
       end      
 
-      print(Core.clocks, w_sum, width, reg_sync_sum_line, reg_sync_sum_line/(width*w_max))
-
+      print(Core.clocks, w_sum, width, reg_sync_push_line, reg_sync_push_line/(width*w_max), reg_sync_pull_line, reg_sync_pull_line/(width*w_max))
+      Core.regsync_push = Core.regsync_push + reg_sync_push_line
+      Core.regsync_pull = Core.regsync_pull + reg_sync_pull_line
       -- TODO add a switch verbose or terse
       logd(Core.clocks, w_sum, w_max, width, w_sum/w_max)
       logd("reg_rename_tab")
@@ -341,6 +353,7 @@ for i=1, Core.num do
    inst_total_sum = inst_total_sum + Core[i].inst_total
 end
 
-print ("## c/s/d=" .. core_num .. "/" .. sb_size .. "/" .. rob_d .. ":", "execute " .. inst_total_sum .. " insts in " .. Core.clocks .. " clks: ", inst_total_sum/Core.clocks)
+print ("## c/s/d=" .. core_num .. "/" .. sb_size .. "/" .. rob_d .. ":", "execute " .. inst_total_sum .. " insts in " .. Core.clocks .. " clks: ", "speedup: "..inst_total_sum/Core.clocks)
+print("## average regsync_push: "..Core.regsync_push/inst_total_sum, " average regsync_pull: "..Core.regsync_pull/inst_total_sum)
 
 --Prof.stop()
