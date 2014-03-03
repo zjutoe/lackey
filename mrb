@@ -2,17 +2,24 @@
 
 #DIR=/home/toe/cpu2006/benchspec/CPU2006/401.bzip2/exe
 #BIN=bzip2_base.i386-m32-gcc44-3.bin
-LOGDIR=tests/log/$1
+#LOGDIR=tests/log/$1
+LOGDIR=data
 
 mkdir -p $LOGDIR
 # [ -e $LOGDIR/pipe ] || mkfifo $LOGDIR/pipe
 
 # date > $LOGDIR/time.start
 
-valgrind --tool=lackey --log-file=$LOGDIR/pipe --trace-mem=yes --trace-superblocks=yes $@
-luajit mrb.lua -c16 -w16 -s50 -d64 < $LOGDIR/pipe > $LOGDIR/mrb.out.c16s50
-luajit mrb.lua -c256 -w256 -s50 -d64 < $LOGDIR/pipe > $LOGDIR/mrb.out.c256s50
-luajit mrb.lua -c256 -w256 -s0 -d64 < $LOGDIR/pipe > $LOGDIR/mrb.out.c256s0
+#valgrind --tool=lackey --log-file=$LOGDIR/pipe --trace-mem=yes --trace-superblocks=yes $@
+luajit mrb_share_L1.lua -c16 -w16 -s50 -d64 < $1.log > $LOGDIR/$1.regsync.c16s50d64.log
+luajit mrb_share_L1.lua -c16 -w16 -s0 -d64 < $1.log > $LOGDIR/$1.regsync.c16s0d64.log
+
+luajit mrb_share_L1.lua -c64 -w64 -s50 -d64 < $1.log > $LOGDIR/$1.regsync.c64s50d64.log
+luajit mrb_share_L1.lua -c64 -w64 -s0 -d64 < $1.log > $LOGDIR/$1.regsync.c64s0d64.log
+
+luajit mrb_share_L1.lua -c256 -w256 -s50 -d64 < $1.log > $LOGDIR/$1.regsync.c256s50d64.log
+luajit mrb_share_L1.lua -c256 -w256 -s0 -d64 < $1.log > $LOGDIR/$1.regsync.c256s0d64.log
+
 # | split -a 4 -b 512M - $LOGDIR/log
 
 #date > $LOGDIR/time.end

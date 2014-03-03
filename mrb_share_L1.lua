@@ -341,7 +341,7 @@ end
 
 init_rob(rob, rob_d, core_num)
 
-print("## clock  insts  width, reg_sync, sync/core")
+print("## clock  insts  width, reg_sync_push, sync_push/core, reg_sync_pull, sync_pull/core")
 
 parse_lackey_log(sb_size)
 
