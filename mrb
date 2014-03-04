@@ -11,14 +11,14 @@ mkdir -p $LOGDIR
 # date > $LOGDIR/time.start
 
 #valgrind --tool=lackey --log-file=$LOGDIR/pipe --trace-mem=yes --trace-superblocks=yes $@
-luajit mrb_share_L1.lua -c16 -w16 -s50 -d64 < $1.log > $LOGDIR/$1.regsync.c16s50d64.log
-luajit mrb_share_L1.lua -c16 -w16 -s0 -d64 < $1.log > $LOGDIR/$1.regsync.c16s0d64.log
+luajit mrb_share_L1.lua -c16 -w16 -s50 -d64 < $1.log > $LOGDIR/$1_regsync_c16s50d64_log
+luajit mrb_share_L1.lua -c16 -w16 -s0 -d64 < $1.log > $LOGDIR/$1_regsync_c16s0d64_log
 
-luajit mrb_share_L1.lua -c64 -w64 -s50 -d64 < $1.log > $LOGDIR/$1.regsync.c64s50d64.log
-luajit mrb_share_L1.lua -c64 -w64 -s0 -d64 < $1.log > $LOGDIR/$1.regsync.c64s0d64.log
+luajit mrb_share_L1.lua -c64 -w64 -s50 -d64 < $1.log > $LOGDIR/$1_regsync_c64s50d64_log
+luajit mrb_share_L1.lua -c64 -w64 -s0 -d64 < $1.log > $LOGDIR/$1_regsync_c64s0d64_log
 
-luajit mrb_share_L1.lua -c256 -w256 -s50 -d64 < $1.log > $LOGDIR/$1.regsync.c256s50d64.log
-luajit mrb_share_L1.lua -c256 -w256 -s0 -d64 < $1.log > $LOGDIR/$1.regsync.c256s0d64.log
+luajit mrb_share_L1.lua -c256 -w256 -s50 -d64 < $1.log > $LOGDIR/$1_regsync_c256s50d64_log
+luajit mrb_share_L1.lua -c256 -w256 -s0 -d64 < $1.log > $LOGDIR/$1_regsync_c256s0d64_log
 
 # | split -a 4 -b 512M - $LOGDIR/log
 
