@@ -15,12 +15,14 @@ end
 
 local reg_rename_tab = {}
 
+local core_affili = false
+
 -- Core
 -- to manage all the cores in the processor
 Core = {num=0, clocks=0, regsync_push=0, regsync_pull=0}
 function Core.new()
    local core_id = Core.num + 1
-   local core = {id=core_id, inst_total=0, inst_pend=0, sb_cnt=0}
+   local core = {id=core_id, inst_total=0, inst_pend=0, sb_cnt=0, busy=false}
 
    Core[core_id] = core
    Core.num = Core.num + 1
@@ -30,10 +32,17 @@ end
 
 -- return the least busy core
 function Core.get_free_core()
-   local core = Core[1]
+   -- local core = Core[1]
+   -- for i=1, Core.num do
+   --    if core.inst_pend > Core[i].inst_pend then
+   -- 	 core = Core[i]
+   --    end
+   -- end
+
    for i=1, Core.num do
-      if core.inst_pend > Core[i].inst_pend then
+      if not Core[i].busy then
 	 core = Core[i]
+	 break
       end
    end
    return core
@@ -70,6 +79,7 @@ function Core.run()
       isum = isum + c.inst_pend
       c.inst_total = c.inst_total + c.inst_pend
       c.inst_pend = 0
+      c.busy = false
    end
 
    Core.clocks = Core.clocks + clocks
@@ -197,7 +207,45 @@ function issue_sb(rob)
 	 end
 
 	 -- dispatch the sb to a free core
-	 local core = Core.get_free_core()
+	 local core
+
+	 if not core_affili then
+	    core = Core.get_free_core()
+	    print("non-affiliation sched")
+	    -- get the 1st non-busy core
+	 else
+	    print("core-affiliation sched")
+	    -- Core Affiliation schedule
+	    local core_deps = {}
+
+	    -- count number of data deps on each cores
+	    for _, r in ipairs(v.reg_input) do
+	       local c = reg_rename_tab[r]
+	       if c then
+		  local cnt = core_deps[c] or 0
+		  core_deps[c] = cnt + 1
+	       end
+	    end
+	    
+	    -- find the core with most deps
+	    local max_dep = 0
+	    local c
+	    for k, v in pairs(core_deps) do
+	       if max_dep < v and not Core[k].busy then
+		  print("find a more depended core "..k.." /w "..v.." reg dep")
+		  max_dep = v
+		  c = k
+	       end
+	    end
+	    core = Core[c]
+
+	    -- this may happen because the reg_rename_tab may be empty
+	    if not core then
+	       core = Core.get_free_core()
+	    end
+	 end
+
+	 core.busy = true
 	 core.inst_pend = core.inst_pend + v.w
 	 core.sb_cnt = core.sb_cnt + 1
 
@@ -319,6 +367,7 @@ local core_num = 16
 local rob_d = 8
 local sb_size = 50
 
+
 for i, v in ipairs(arg) do
    --print(type(v))
    if (v:sub(1,2) == "-c") then
@@ -330,6 +379,8 @@ for i, v in ipairs(arg) do
    elseif (v:sub(1,2) == "-s") then
       --print("minimum superblock size:")
       sb_size = tonumber(v:sub(3))
+   elseif (v:sub(1,2) == "-a") then
+      core_affili = true
    end
 end
 
