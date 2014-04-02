@@ -2,7 +2,7 @@
 
 find . -name "*.eps" | xargs rm 
 
-for f in ../*.log; do
+for f in *_log; do
 # set yr [0:250]
 gnuplot <<EOF
 load "plot_common.p"
