@@ -211,10 +211,8 @@ function issue_sb(rob)
 
 	 if not core_affili then
 	    core = Core.get_free_core()
-	    print("non-affiliation sched")
 	    -- get the 1st non-busy core
 	 else
-	    print("core-affiliation sched")
 	    -- Core Affiliation schedule
 	    local core_deps = {}
 
@@ -232,7 +230,8 @@ function issue_sb(rob)
 	    local c
 	    for k, v in pairs(core_deps) do
 	       if max_dep < v and not Core[k].busy then
-		  print("find a more depended core "..k.." /w "..v.." reg dep")
+		  -- TODO plot to show the frequency of core affilication sched
+		  logd("find a more depended core "..k.." /w "..v.." reg dep")
 		  max_dep = v
 		  c = k
 	       end
@@ -392,7 +391,7 @@ end
 
 init_rob(rob, rob_d, core_num)
 
-print("## clock  insts  width, reg_sync_push, sync_push/core, reg_sync_pull, sync_pull/core")
+print("## clock  insts  width  reg_sync_push  sync_push/core*clk  reg_sync_pull  sync_pull/core*clk")
 
 parse_lackey_log(sb_size)
 
@@ -404,6 +403,12 @@ for i=1, Core.num do
    inst_total_sum = inst_total_sum + Core[i].inst_total
 end
 
+if not core_affili then 
+   print("## non-affiliation sched") 
+else 
+   print("## core-affiliation sched")
+end
+   
 print ("## c/s/d=" .. core_num .. "/" .. sb_size .. "/" .. rob_d .. ":", "execute " .. inst_total_sum .. " insts in " .. Core.clocks .. " clks: ", "speedup: "..inst_total_sum/Core.clocks)
 print("## average regsync_push: "..Core.regsync_push/inst_total_sum, " average regsync_pull: "..Core.regsync_pull/inst_total_sum)
 
