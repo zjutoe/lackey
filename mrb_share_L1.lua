@@ -410,6 +410,7 @@ else
 end
    
 print ("## c/s/d=" .. core_num .. "/" .. sb_size .. "/" .. rob_d .. ":", "execute " .. inst_total_sum .. " insts in " .. Core.clocks .. " clks: ", "speedup: "..inst_total_sum/Core.clocks)
-print("## average regsync_push: "..Core.regsync_push/inst_total_sum, " average regsync_pull: "..Core.regsync_pull/inst_total_sum)
+--print("## average regsync_push: "..Core.regsync_push/inst_total_sum, " average regsync_pull: "..Core.regsync_pull/inst_total_sum)
+print(string.format("## average regsync_push: %.3f average regsync_pull: %.3f", Core.regsync_push/inst_total_sum, Core.regsync_pull/inst_total_sum))
 
 --Prof.stop()
