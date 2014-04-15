@@ -10,19 +10,15 @@ mkdir -p $LOGDIR
 
 # date > $LOGDIR/time.start
 
-echo > $LOGDIR/"$1"_sum
 for size in 0 50 100; do
-    echo -n "S$size " >> $LOGDIR/"$1"_sum
     for core in 16 64 256; do
 	for depth in 16 64 256; do
 	    luajit mrb_share_L1.lua -c$core -s$size -d$depth < $1.log > $LOGDIR/$1_regsync_c"$core"_s"$size"_d"$depth"_log
-	    regsyn_pull=$(tail -n1 $LOGDIR/$1_regsync_c"$core"_s"$size"_d"$depth"_log | cut -f3 -d:)
-	    echo -n "& $regsyn_pull " >> $LOGDIR/"$1"_sum
 	    luajit mrb_share_L1.lua -a -c$core -s$size -d$depth < $1.log > $LOGDIR/$1_regsync_c"$core"_s"$size"_d"$depth"_a_log
 	done
     done    
-    echo "\\\\" >> $LOGDIR/"$1"_sum
 done
+
 
 # #valgrind --tool=lackey --log-file=$LOGDIR/pipe --trace-mem=yes --trace-superblocks=yes $@
 

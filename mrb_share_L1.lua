@@ -115,6 +115,11 @@ local reg_writer = {}
 local reg_input = {}
 local reg_output = {}
 
+-- register put/get count
+local reg_p = 0
+local reg_g = 0
+local reg_pg_sum = 0
+
 
 local sb_addr = 0
 -- the SB on which the current sb depends
@@ -278,7 +283,7 @@ function issue_sb(rob)
 	 sbs[v.addr] = nil
       end      
 
-      print(Core.clocks, w_sum, width, reg_sync_push_line, reg_sync_push_line/(width*w_max), reg_sync_pull_line, reg_sync_pull_line/(width*w_max))
+      print(Core.clocks, w_sum, width, reg_sync_push_line, reg_sync_push_line/(width*w_max), reg_sync_pull_line, reg_sync_pull_line/(width*w_max), (reg_p+reg_g)/(width*w_max))
       Core.regsync_push = Core.regsync_push + reg_sync_push_line
       Core.regsync_pull = Core.regsync_pull + reg_sync_pull_line
       -- TODO add a switch verbose or terse
@@ -312,6 +317,9 @@ function end_sb()
    deps = {}
    reg_input = {}
    reg_output = {}
+
+   reg_pg_sum = reg_pg_sum + reg_p + reg_g
+   reg_p, reg_g = 0, 0
 end				-- function end_sb()
 
 -- the table deps is a set, we use addr as key, so searching it is
@@ -340,11 +348,15 @@ function parse_lackey_log(sb_size)
 	       weight_accu = 0
 	    end
 	 elseif k == ' P' then
+	    reg_p = reg_p + 1	    
+
 	    local reg_no = tonumber(line:sub(4))
 	    reg_writer[reg_no] = sb_addr
 	    reg_output[#reg_output + 1] = reg_no
 	    
 	 elseif k == ' G' then
+	    reg_g = reg_g + 1
+
 	    local reg_no = tonumber(line:sub(4))
 	    local dep = reg_writer[reg_no]
 	    if dep and dep ~= sb_addr then 
@@ -391,7 +403,7 @@ end
 
 init_rob(rob, rob_d, core_num)
 
-print("## clock  insts  width  reg_sync_push  sync_push/core*clk  reg_sync_pull  sync_pull/core*clk")
+print("## clock  insts  width  reg_sync_push  sync_push/core*clk  reg_sync_pull  sync_pull/core*clk  reg_rw/core*clk")
 
 parse_lackey_log(sb_size)
 
@@ -411,6 +423,6 @@ end
    
 print ("## c/s/d=" .. core_num .. "/" .. sb_size .. "/" .. rob_d .. ":", "execute " .. inst_total_sum .. " insts in " .. Core.clocks .. " clks: ", "speedup: "..inst_total_sum/Core.clocks)
 --print("## average regsync_push: "..Core.regsync_push/inst_total_sum, " average regsync_pull: "..Core.regsync_pull/inst_total_sum)
-print(string.format("## average regsync_push: %.3f average regsync_pull: %.3f", Core.regsync_push/inst_total_sum, Core.regsync_pull/inst_total_sum))
+print(string.format("## average regsync_push: %.3f average regsync_pull: %.3f regsync_rw: %.3f", Core.regsync_push/inst_total_sum, Core.regsync_pull/inst_total_sum, reg_pg_sum/inst_total_sum))
 
 --Prof.stop()
