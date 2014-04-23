@@ -16,6 +16,7 @@ end
 local reg_rename_tab = {}
 
 local core_affili = false
+local verbose = false
 
 -- Core
 -- to manage all the cores in the processor
@@ -283,7 +284,9 @@ function issue_sb(rob)
 	 sbs[v.addr] = nil
       end      
 
-      print(Core.clocks, w_sum, width, reg_sync_push_line, reg_sync_push_line/(width*w_max), reg_sync_pull_line, reg_sync_pull_line/(width*w_max), (reg_p+reg_g)/(width*w_max))
+      if verbose then
+	 print(Core.clocks, w_sum, width, reg_sync_push_line, reg_sync_push_line/(width*w_max), reg_sync_pull_line, reg_sync_pull_line/(width*w_max), (reg_p+reg_g)/(width*w_max))
+      end
       Core.regsync_push = Core.regsync_push + reg_sync_push_line
       Core.regsync_pull = Core.regsync_pull + reg_sync_pull_line
       -- TODO add a switch verbose or terse
@@ -392,6 +395,8 @@ for i, v in ipairs(arg) do
       sb_size = tonumber(v:sub(3))
    elseif (v:sub(1,2) == "-a") then
       core_affili = true
+   elseif (v:sub(1,2) == "-v") then
+      verbose = true
    end
 end
 
