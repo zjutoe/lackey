@@ -298,6 +298,33 @@ function issue_sb(rob)
    end
 end
 
+-- the parameters that affects the parallelism 
+local core_num = 16
+local rob_d = 8
+local sb_size = 50
+
+function summarize() 
+   -- summarize
+   print("## summary")
+   local inst_total_sum = 0
+   for i=1, Core.num do
+      print("##", Core[i].inst_total, Core[i].sb_cnt)
+      inst_total_sum = inst_total_sum + Core[i].inst_total
+   end
+
+   if not core_affili then 
+      print("## non-affiliation sched") 
+   else 
+      print("## core-affiliation sched")
+   end
+   
+   print ("## c/s/d=" .. core_num .. "/" .. sb_size .. "/" .. rob_d .. ":", "execute " .. inst_total_sum .. " insts in " .. Core.clocks .. " clks: ", "speedup: "..inst_total_sum/Core.clocks)
+   --print("## average regsync_push: "..Core.regsync_push/inst_total_sum, " average regsync_pull: "..Core.regsync_pull/inst_total_sum)
+   print(string.format("## average regsync_push: %.3f average regsync_pull: %.3f regsync_rw: %.3f", Core.regsync_push/inst_total_sum, Core.regsync_pull/inst_total_sum, reg_pg_sum/inst_total_sum))
+   --Prof.stop()
+end
+
+
 -- the current superblock ends, we'll analyze it here
 function end_sb()
    -- build the superblock
@@ -316,6 +343,12 @@ function end_sb()
    -- logd(' R:'..#reg_input)
    place_sb(rob, sb)
    issue_sb(rob)
+
+   -- to halt at 1000000 clocks
+   if Core.clocks >= 100000 then
+      summarize()
+      os.exit()
+   end
 
    deps = {}
    reg_input = {}
@@ -376,10 +409,6 @@ function parse_lackey_log(sb_size)
    -- logd(i)
 end				--  function parse_lackey_log()
 
--- the parameters that affects the parallelism 
-local core_num = 16
-local rob_d = 8
-local sb_size = 50
 
 
 for i, v in ipairs(arg) do
@@ -412,22 +441,4 @@ print("## clock  insts  width  reg_sync_push  sync_push/core*clk  reg_sync_pull 
 
 parse_lackey_log(sb_size)
 
--- summarize
-print("## summary")
-local inst_total_sum = 0
-for i=1, Core.num do
-   print("##", Core[i].inst_total, Core[i].sb_cnt)
-   inst_total_sum = inst_total_sum + Core[i].inst_total
-end
-
-if not core_affili then 
-   print("## non-affiliation sched") 
-else 
-   print("## core-affiliation sched")
-end
-   
-print ("## c/s/d=" .. core_num .. "/" .. sb_size .. "/" .. rob_d .. ":", "execute " .. inst_total_sum .. " insts in " .. Core.clocks .. " clks: ", "speedup: "..inst_total_sum/Core.clocks)
---print("## average regsync_push: "..Core.regsync_push/inst_total_sum, " average regsync_pull: "..Core.regsync_pull/inst_total_sum)
-print(string.format("## average regsync_push: %.3f average regsync_pull: %.3f regsync_rw: %.3f", Core.regsync_push/inst_total_sum, Core.regsync_pull/inst_total_sum, reg_pg_sum/inst_total_sum))
-
---Prof.stop()
+summarize()
