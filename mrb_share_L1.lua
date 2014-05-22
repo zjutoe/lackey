@@ -116,10 +116,14 @@ local reg_writer = {}
 local reg_input = {}
 local reg_output = {}
 
+local mem_input = {}
+local mem_output = {}
+
 -- register put/get count
 local reg_p = 0
 local reg_g = 0
 local reg_pg_sum = 0
+
 
 
 local sb_addr = 0
@@ -277,6 +281,13 @@ function issue_sb(rob)
 	    end
 	 end
 
+	 for i, addr in ipairs(v.mem_input) do
+	    print("M", core.id, 0, addr, 4)
+	 end
+	 for i, addr in ipairs(v.mem_output) do
+	    print("M", core.id, 1, addr, 4)
+	 end
+
 	 logd("SB "..v.addr.." issued to core "..core.id.." reg_sync_push= "..reg_sync_push.."/"..#v.reg_output.." reg_sync_pull= "..reg_sync_pull.."/"..#v.reg_input)
 	 reg_sync_push_line = reg_sync_push_line + reg_sync_push
 	 reg_sync_pull_line = reg_sync_pull_line + reg_sync_pull
@@ -334,6 +345,8 @@ function end_sb()
    sb['deps'] = deps
    sb.reg_input = reg_input
    sb.reg_output = reg_output
+   sb.mem_input = mem_input
+   sb.mem_output = mem_output
 
    sbs[sb_addr] = sb
    -- io.write(sb_addr.."<=")
@@ -353,6 +366,8 @@ function end_sb()
    deps = {}
    reg_input = {}
    reg_output = {}
+   mem_input = {}
+   mem_output = {}
 
    reg_pg_sum = reg_pg_sum + reg_p + reg_g
    reg_p, reg_g = 0, 0
@@ -400,6 +415,15 @@ function parse_lackey_log(sb_size)
 	       add_depended(dep) 
 	       reg_input[#reg_input + 1] = reg_no
 	    end
+
+	 elseif k == ' L' then
+	    local addr = line:sub(4, 11)
+	    mem_input[#mem_input + 1] = addr
+
+	 elseif k == ' S' then
+	    local addr = line:sub(4, 11)
+	    mem_output[#mem_output + 1] = addr
+
 	 elseif k == ' W' then
 	    weight_accu = weight_accu + tonumber(line:sub(4))
 	 end
