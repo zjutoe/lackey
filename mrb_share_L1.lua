@@ -118,6 +118,7 @@ local reg_output = {}
 
 local mem_input = {}
 local mem_output = {}
+local mem_io_cnt = 0
 
 -- register put/get count
 local reg_p = 0
@@ -282,10 +283,12 @@ function issue_sb(rob)
 	 end
 
 	 for i, addr in ipairs(v.mem_input) do
-	    print("M", core.id, 0, addr, 4)
+	    mem_io_cnt = mem_io_cnt + 1
+	    print(string.format("%d 0 %s 4 d%d", core.id, addr, mem_io_cnt))
 	 end
 	 for i, addr in ipairs(v.mem_output) do
-	    print("M", core.id, 1, addr, 4)
+	    mem_io_cnt = mem_io_cnt + 1
+	    print(string.format("%d 1 %s 4 d%d", core.id, addr, mem_io_cnt))
 	 end
 
 	 logd("SB "..v.addr.." issued to core "..core.id.." reg_sync_push= "..reg_sync_push.."/"..#v.reg_output.." reg_sync_pull= "..reg_sync_pull.."/"..#v.reg_input)
