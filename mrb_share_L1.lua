@@ -191,7 +191,7 @@ end				-- function place_sb(rob, sb)
 function issue_sb(rob)
    local buf = rob.buf
    if List.size(buf) > rob.MAX then
-      local l = List.popleft(buf)
+      local l = List.popleft(buf) -- a line of sb's to issue
       local w_sum = 0
       local w_max = 0
       local width = 0
@@ -345,7 +345,7 @@ function end_sb()
    issue_sb(rob)
 
    -- to halt at 1000000 clocks
-   if Core.clocks >= 100000 then
+   if Core.clocks >= 300000 then
       summarize()
       os.exit()
    end
@@ -410,26 +410,29 @@ function parse_lackey_log(sb_size)
 end				--  function parse_lackey_log()
 
 
+function parse_arg(arg) 
 
-for i, v in ipairs(arg) do
-   --print(type(v))
-   if (v:sub(1,2) == "-c") then
-      --print("core number:")
-      core_num = tonumber(v:sub(3))
-   elseif (v:sub(1,2) == "-d") then
-      --print("ROB depth:")
-      rob_d = tonumber(v:sub(3))
-   elseif (v:sub(1,2) == "-s") then
-      --print("minimum superblock size:")
-      sb_size = tonumber(v:sub(3))
-   elseif (v:sub(1,2) == "-a") then
-      core_affili = true
-   elseif (v:sub(1,2) == "-v") then
-      verbose = true
+   for i, v in ipairs(arg) do
+      --print(type(v))
+      if (v:sub(1,2) == "-c") then
+	 --print("core number:")
+	 core_num = tonumber(v:sub(3))
+      elseif (v:sub(1,2) == "-d") then
+	 --print("ROB depth:")
+	 rob_d = tonumber(v:sub(3))
+      elseif (v:sub(1,2) == "-s") then
+	 --print("minimum superblock size:")
+	 sb_size = tonumber(v:sub(3))
+      elseif (v:sub(1,2) == "-a") then
+	 core_affili = true
+      elseif (v:sub(1,2) == "-v") then
+	 verbose = true
+      end
    end
-end
+   
+end				-- parse_arg()
 
---Prof.start("mrb.prof.data")
+parse_arg(arg)
 
 for i=1, core_num do
    Core.new()

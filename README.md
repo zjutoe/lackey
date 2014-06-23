@@ -3,6 +3,25 @@ lackey
 
 valgrind tool to trace code execution
 
+Usage
+=====
+
+1. lackey
+
+$ valgrind --log-file=lackey_trace.log --tool=lackey --trace-mem=yes --trace-superblocks=yes exe
+
+exe: the executable to run in valgrind
+
+2. mrb_shared_L1.lua
+
+$ luajit mrb_shared_L1.lua -c$core -s$size -d$depth < lackey_trace.log
+
+core: number of cores
+size: size of merged code block
+depth: reorder buffer depth
+lackey_trace.log: the trace of valgrind lackey plugin
+
+
 TODO
 ====
 
