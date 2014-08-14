@@ -275,9 +275,14 @@ function parse_lackey_log(sb_size, sb_merge)
 	       mem_input[d_addr] = tonumber(line:sub(13))
 	    end
 	 elseif k == ' P' then
-	    reg_writer[tonumber(line:sub(4))] = sb_addr
+	    -- reg_writer[tonumber(line:sub(4))] = sb_addr
+	    reg_o, clk_sb = string.match(line:sub(4), "(%d+) (%d+)")
+	    reg_writer[tonumber(reg_o)] = sb_addr
+
 	 elseif k == ' G' then
-	    local d_addr = tonumber(line:sub(4))
+	    -- local d_addr = tonumber(line:sub(4))
+	    reg_o, clk_sb = string.match(line:sub(4), "(%d+) (%d+)")
+	    local d_addr = tonumber(reg_o)
 	    local dep = reg_writer[d_addr]
 	    if dep and dep ~= sb_addr then 
 	       io.write("G "..line:sub(4).." ")
