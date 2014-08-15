@@ -264,7 +264,6 @@ local core_num = 16
 -- global clock
 local gclk = 0
 local inst_total_sum = 0
-local inst_total_line = 0
 local cur_core = 0
 local offset_delay = 0
 
@@ -281,7 +280,6 @@ function parse_lackey_log(sb_size, sb_merge)
 	    -- if not sb_merge or
 	    if weight_accu >= sb_size then
 	       inst_total_sum = inst_total_sum + weight_accu
-	       inst_total_line = inst_total_line + weight_accu
 
 	       weight_accu = weight_accu + offset_delay
 	       -- set_sb_weight(weight_accu)
@@ -290,9 +288,10 @@ function parse_lackey_log(sb_size, sb_merge)
 	       if weight_max < weight_accu then weight_max = weight_accu end
 
 	       if cur_core == core_num - 1 then 
-		  print(string.format("%d / %d", inst_total_line, weight_max))
 		  gclk = gclk + weight_max -- proceed all cores with weight_max clocks
 		  weight_max = 0
+		  reg_writer = {}
+
 	       end
 	       -- start_sb(line:sub(4))
 	       weight_accu = 0
@@ -380,5 +379,6 @@ print("## summary")
 -- end
 
 print ("## c/s/w/d=" .. core_num .. "/" .. sb_size .. "/" .. rob_w .. "/" .. rob_d .. ":", "execute " .. inst_total_sum .. " insts in " .. gclk .. ": ", inst_total_sum/gclk)
+
 
 --Prof.stop()
