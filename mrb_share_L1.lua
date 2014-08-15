@@ -445,11 +445,13 @@ function parse_lackey_log(sb_size)
 	    -- we will pretend to not know the addr yet, and will
 	    -- handl the load/store in execution phase (function
 	    -- issue_sb)
-	    mem_input[#mem_input + 1] = {["addr"]=addr, ["pc"]=i}
+	    -- mem_input[#mem_input + 1] = {["addr"]=addr, ["pc"]=i}
+	    mem_input[#mem_input + 1] = addr
 
 	 elseif k == ' S' then
 	    local addr = line:sub(4, 11)
-	    mem_output[#mem_output + 1] = {["addr"]=addr, ["pc"]=i}
+	    -- mem_output[#mem_output + 1] = {["addr"]=addr, ["pc"]=i}
+	    mem_output[#mem_output + 1] = addr
 
 	 elseif k == ' W' then
 	    weight_accu = weight_accu + tonumber(line:sub(4))
