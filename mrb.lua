@@ -127,7 +127,7 @@ end
 
 -- we are entering a new superblock
 function start_sb(addr)
-   print("SB "..addr)
+   -- print("SB "..addr)
    sb_addr = addr
 end
 
@@ -225,11 +225,11 @@ function end_sb()
    sb.dep_reg_cnt = dep_reg_cnt
 
    sbs[sb_addr] = sb
-   io.write(sb_addr.."<=")
-   for k, v in pairs(deps) do
-      io.write(k.." ")
-   end
-   print(' M:'..dep_mem_cnt..' R:'..dep_reg_cnt)
+   -- io.write(sb_addr.."<=")
+   -- for k, v in pairs(deps) do
+   --    io.write(k.." ")
+   -- end
+   -- print(' M:'..dep_mem_cnt..' R:'..dep_reg_cnt)
    place_sb(rob, sb)
    issue_sb(rob)
 
@@ -242,7 +242,7 @@ end				-- function end_sb()
 -- efficient
 function add_depended(addr)
    deps[addr] = sbs[addr]
-   print('add_depended:', addr)
+   -- print('add_depended:', addr)
 end
 
 function set_sb_weight(w)
@@ -270,17 +270,19 @@ function parse_lackey_log(sb_size, sb_merge)
 	    local d_addr = tonumber(line:sub(4,11), 16)
 	    local dep = mem_writer[d_addr]
 	    if dep and dep ~= sb_addr then 
-	       io.write("L "..line:sub(4,11).." ")
+	       -- io.write("L "..line:sub(4,11).." ")
 	       -- add_depended(dep) 
 	       mem_input[d_addr] = tonumber(line:sub(13))
 	    end
 	 elseif k == ' P' then
-	    reg_writer[tonumber(line:sub(4))] = sb_addr
+	    local reg_o, offset_sb = string.match(line:sub(4), "(%d+) (%d+)")
+	    reg_writer[tonumber(reg_o)] = sb_addr
 	 elseif k == ' G' then
-	    local d_addr = tonumber(line:sub(4))
+	    reg_i, offset_sb = string.match(line:sub(4), "(%d+) (%d+)")
+	    local d_addr = tonumber(reg_i)
 	    local dep = reg_writer[d_addr]
 	    if dep and dep ~= sb_addr then 
-	       io.write("G "..line:sub(4).." ")
+	       -- io.write("G "..line:sub(4).." ")
 	       add_depended(dep) 
 	       reg_input[d_addr] = 1
 	    end

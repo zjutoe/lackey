@@ -623,12 +623,12 @@ void addEvent_Dw ( IRSB* sb, IRAtom* daddr, Int dsize )
 
 static void trace_put(Int offset)
 {
-	VG_(printf)(" P %d\n", offset);
+	VG_(printf)(" P %d %d\n", offset, n_guest_instrs_sb);
 }
 
 static void trace_get(Int offset)
 {
-	VG_(printf)(" G %d\n", offset);
+	VG_(printf)(" G %d %d\n", offset, n_guest_instrs_sb);
 }
 
 
