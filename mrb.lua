@@ -99,6 +99,9 @@ local mem_writer = {}
 -- to record which SB writes to a specific register
 local reg_writer = {}
 
+local reg_out = {}
+local reg_in = {}
+
 -- data input of the current SB
 local mem_input = {}
 local reg_input = {}
@@ -167,6 +170,7 @@ function place_sb(rob, sb)
    l[#l + 1] = sb
 
 end				-- function place_sb(rob, sb)
+
 
 -- issue a line of sb's from the rob when necessary
 function issue_sb(rob)
@@ -249,9 +253,26 @@ function set_sb_weight(w)
    sb_weight = w
 end
 
+
+-- the parameters that affects the parallelism 
+local rob_w = 16
+local rob_d = 8
+local sb_size = 50
+local sb_merge = false
+local core_num = 16
+
+-- global clock
+local gclk = 0
+local inst_total_sum = 0
+local inst_total_line = 0
+local cur_core = 0
+local offset_delay = 0
+
 function parse_lackey_log(sb_size, sb_merge)
    local i = 0
    local weight_accu = 0
+   local weight_max = 0
+
    for line in io.lines() do
       if line:sub(1,2) ~= '==' then
 	 i = i + 1
@@ -259,35 +280,54 @@ function parse_lackey_log(sb_size, sb_merge)
 	 if k == 'SB' then
 	    -- if not sb_merge or
 	    if weight_accu >= sb_size then
-	       set_sb_weight(weight_accu)
-	       end_sb()
-	       start_sb(line:sub(4))	       
+	       inst_total_sum = inst_total_sum + weight_accu
+	       inst_total_line = inst_total_line + weight_accu
+
+	       weight_accu = weight_accu + offset_delay
+	       -- set_sb_weight(weight_accu)
+	       -- end_sb()
+
+	       if weight_max < weight_accu then weight_max = weight_accu end
+
+	       if cur_core == core_num - 1 then 
+		  print(string.format("%d / %d", inst_total_line, weight_max))
+		  gclk = gclk + weight_max -- proceed all cores with weight_max clocks
+		  weight_max = 0
+	       end
+	       -- start_sb(line:sub(4))
 	       weight_accu = 0
+	       offset_delay = 0
+	       cur_core = (cur_core + 1) % core_num
 	    end
-	 elseif k == ' S' then
-	    mem_writer[tonumber(line:sub(4,11), 16)] = sb_addr
-	 elseif k == ' L' then
-	    local d_addr = tonumber(line:sub(4,11), 16)
-	    local dep = mem_writer[d_addr]
-	    if dep and dep ~= sb_addr then 
-	       io.write("L "..line:sub(4,11).." ")
-	       -- add_depended(dep) 
-	       mem_input[d_addr] = tonumber(line:sub(13))
-	    end
+	 -- elseif k == ' S' then
+	 --    mem_writer[tonumber(line:sub(4,11), 16)] = sb_addr
+	 -- elseif k == ' L' then
+	 --    local d_addr = tonumber(line:sub(4,11), 16)
+	 --    local dep = mem_writer[d_addr]
+	 --    if dep and dep ~= sb_addr then 
+	 --       io.write("L "..line:sub(4,11).." ")
+	 --       -- add_depended(dep) 
+	 --       mem_input[d_addr] = tonumber(line:sub(13))
+	 --    end
 	 elseif k == ' P' then
 	    -- reg_writer[tonumber(line:sub(4))] = sb_addr
-	    reg_o, clk_sb = string.match(line:sub(4), "(%d+) (%d+)")
-	    reg_writer[tonumber(reg_o)] = sb_addr
+	    local reg_o, offset_sb = string.match(line:sub(4), "(%d+) (%d+)")
+	    reg_writer[tonumber(reg_o)] = {core = cur_core, offset = offset_sb + offset_delay}
+	    -- io.write(string.format("P %s:%d -> %d; ", sb_addr, offset_sb, reg_o))
 
 	 elseif k == ' G' then
 	    -- local d_addr = tonumber(line:sub(4))
-	    reg_o, clk_sb = string.match(line:sub(4), "(%d+) (%d+)")
-	    local d_addr = tonumber(reg_o)
-	    local dep = reg_writer[d_addr]
-	    if dep and dep ~= sb_addr then 
-	       io.write("G "..line:sub(4).." ")
-	       add_depended(dep) 
-	       reg_input[d_addr] = 1
+	    reg_i, offset_sb = string.match(line:sub(4), "(%d+) (%d+)")
+	    local writer = reg_writer[tonumber(reg_i)]
+	    if writer then 
+	       local dep, offset_writer = writer.core, writer.offset
+	       if dep and dep ~= cur_core then 
+		  -- io.write(string.format("G %d <- %s:%d; ", reg_i, dep, offset_writer))
+		  if offset_writer >= offset_sb + offset_delay then
+		     -- offset_delay = offset_delay + offset_writer - (offset_sb + offset_delay)
+		     offset_delay = offset_writer - offset_sb
+		  end
+	       end
 	    end
 	 -- elseif k == ' D' then
 	 --    add_depended(line:sub(4))
@@ -300,12 +340,6 @@ function parse_lackey_log(sb_size, sb_merge)
    -- logd(i)
 end				--  function parse_lackey_log()
 
--- the parameters that affects the parallelism 
-local core_num = 16
-local rob_w = 16
-local rob_d = 8
-local sb_size = 50
-local sb_merge = false
 
 for i, v in ipairs(arg) do
    --print(type(v))
@@ -329,9 +363,9 @@ end
 
 --Prof.start("mrb.prof.data")
 
-for i=1, core_num do
-   Core.new()
-end
+-- for i=1, core_num do
+--    Core.new()
+-- end
 
 rob_w = core_num
 init_rob(rob, rob_d, rob_w)
@@ -339,12 +373,12 @@ parse_lackey_log(sb_size, sb_merge)
 
 -- summarize
 print("## summary")
-local inst_total_sum = 0
-for i=1, Core.num do
-   print("##", Core[i].inst_total, Core[i].sb_cnt)
-   inst_total_sum = inst_total_sum + Core[i].inst_total
-end
 
-print ("## c/s/w/d=" .. core_num .. "/" .. sb_size .. "/" .. rob_w .. "/" .. rob_d .. ":", "execute " .. inst_total_sum .. " insts in " .. Core.clocks .. ": ", inst_total_sum/Core.clocks)
+-- for i=1, Core.num do
+--    print("##", Core[i].inst_total, Core[i].sb_cnt)
+--    inst_total_sum = inst_total_sum + Core[i].inst_total
+-- end
+
+print ("## c/s/w/d=" .. core_num .. "/" .. sb_size .. "/" .. rob_w .. "/" .. rob_d .. ":", "execute " .. inst_total_sum .. " insts in " .. gclk .. ": ", inst_total_sum/gclk)
 
 --Prof.stop()
