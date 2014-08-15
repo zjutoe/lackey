@@ -236,6 +236,12 @@ function end_sb()
    deps = {}
    mem_input = {}
    reg_input = {}
+
+   -- to halt at 3000000 clocks
+   if Core.clocks >= 200000 then
+      summarize()
+      os.exit()
+   end
 end				-- function end_sb()
 
 -- the table deps is a set, we use addr as key, so searching it is
@@ -247,6 +253,51 @@ end
 
 function set_sb_weight(w)
    sb_weight = w
+end
+
+-- the parameters that affects the parallelism 
+local core_num = 16
+local rob_w = 16
+local rob_d = 8
+local sb_size = 50
+local sb_merge = false
+
+for i, v in ipairs(arg) do
+   --print(type(v))
+   if (v:sub(1,2) == "-c") then
+      --print("core number:")
+      core_num = tonumber(v:sub(3))
+   -- elseif (v:sub(1,2) == "-w") then
+   --    --print("ROB width:")
+   --    rob_w = tonumber(v:sub(3))
+   elseif (v:sub(1,2) == "-d") then
+      --print("ROB depth:")
+      rob_d = tonumber(v:sub(3))
+   elseif (v:sub(1,2) == "-s") then
+      --print("minimum superblock size:")
+      sb_size = tonumber(v:sub(3))
+   elseif (v:sub(1,2) == "-mg") then
+      --print("minimum superblock size:")
+      sb_merge = true
+   end
+end
+
+--Prof.start("mrb.prof.data")
+
+for i=1, core_num do
+   Core.new()
+end
+
+-- summarize
+function summarize() 
+   print("## summary")
+   local inst_total_sum = 0
+   for i=1, Core.num do
+      print("##", Core[i].inst_total, Core[i].sb_cnt)
+      inst_total_sum = inst_total_sum + Core[i].inst_total
+   end
+
+   print ("## c/s/w/d=" .. core_num .. "/" .. sb_size .. "/" .. rob_w .. "/" .. rob_d .. ":", "execute " .. inst_total_sum .. " insts in " .. Core.clocks .. ": ", inst_total_sum/Core.clocks)
 end
 
 function parse_lackey_log(sb_size, sb_merge)
@@ -297,51 +348,10 @@ function parse_lackey_log(sb_size, sb_merge)
    -- logd(i)
 end				--  function parse_lackey_log()
 
--- the parameters that affects the parallelism 
-local core_num = 16
-local rob_w = 16
-local rob_d = 8
-local sb_size = 50
-local sb_merge = false
-
-for i, v in ipairs(arg) do
-   --print(type(v))
-   if (v:sub(1,2) == "-c") then
-      --print("core number:")
-      core_num = tonumber(v:sub(3))
-   -- elseif (v:sub(1,2) == "-w") then
-   --    --print("ROB width:")
-   --    rob_w = tonumber(v:sub(3))
-   elseif (v:sub(1,2) == "-d") then
-      --print("ROB depth:")
-      rob_d = tonumber(v:sub(3))
-   elseif (v:sub(1,2) == "-s") then
-      --print("minimum superblock size:")
-      sb_size = tonumber(v:sub(3))
-   elseif (v:sub(1,2) == "-mg") then
-      --print("minimum superblock size:")
-      sb_merge = true
-   end
-end
-
---Prof.start("mrb.prof.data")
-
-for i=1, core_num do
-   Core.new()
-end
-
 rob_w = core_num
 init_rob(rob, rob_d, rob_w)
 parse_lackey_log(sb_size, sb_merge)
 
--- summarize
-print("## summary")
-local inst_total_sum = 0
-for i=1, Core.num do
-   print("##", Core[i].inst_total, Core[i].sb_cnt)
-   inst_total_sum = inst_total_sum + Core[i].inst_total
-end
-
-print ("## c/s/w/d=" .. core_num .. "/" .. sb_size .. "/" .. rob_w .. "/" .. rob_d .. ":", "execute " .. inst_total_sum .. " insts in " .. Core.clocks .. ": ", inst_total_sum/Core.clocks)
+summarize() 
 
 --Prof.stop()
