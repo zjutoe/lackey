@@ -165,13 +165,15 @@ function place_sb(rob, sb)
    -- place the sb in the proper level of the rob
    sb['d'] = d 
    l[#l + 1] = sb
+   logd('place:', sb.addr, d)
 
 end				-- function place_sb(rob, sb)
 
 -- issue a line of sb's from the rob when necessary
 function issue_sb(rob)
    local buf = rob.buf
-   if List.size(buf) > rob.MAX then
+   -- if List.size(buf) > rob.MAX then
+   while List.size(buf) > rob.MAX do
       local l = List.popleft(buf)
       local w_sum = 0
       local w_max = 0
@@ -181,9 +183,9 @@ function issue_sb(rob)
       Core.run()
 
       -- TODO add a switch verbose or terse
-      logd('issue:')      
+      logd('issue:', #l)      
       
-      for k, v in pairs(l) do
+      for k, v in ipairs(l) do
 	 width = width + 1
 	 -- TODO add a switch verbose or terse
 	 logd('     ', v.addr, v.w)
