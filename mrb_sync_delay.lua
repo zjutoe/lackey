@@ -185,8 +185,25 @@ function issue_sb(rob)
       -- to make room for more sb's
       Core.run()
 
+      -- fill the leading line till it is full
+      if List.size(l) < rob.WIDTH then
+	 local nextline = List.popleft(buf)
+	 while nextline do
+	    while List.size(l) < rob.WIDTH and List.size(nextline) > 0 do
+	       List.pushright(l, List.popleft(nextline))
+	    end
+	    if List.size(l) == rob.WIDTH then 
+	       if List.size(nextline) > 0 then List.pushleft(buf, nextline) end -- push the nextline back
+	       break
+	    end
+	    if List.size(nextline) == 0 then
+	       nextline = List.popleft(buf)
+	    end
+	 end
+      end
+
       -- TODO add a switch verbose or terse
-      logd('issue:', List.size(l))
+      logd('issue:', List.size(l))     
       
       while List.size(l) > 0 do
 	 v = List.popleft(l)
