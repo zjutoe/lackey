@@ -10,7 +10,56 @@
 local List = require "list"
 
 function logd(...)
-   print(...)
+   -- print(...)
+end
+
+-- the parameters that affects the parallelism 
+local core_num = 16
+local rob_w = 16
+local rob_d = 8
+local sb_size = 50
+local sb_merge = false
+local quit_at = 300000
+local reg_sync_delay = 4
+
+for i, v in ipairs(arg) do
+   --print(type(v))
+   if (v:sub(1,2) == "-c") then
+      --print("core number:")
+      core_num = tonumber(v:sub(3))
+   -- elseif (v:sub(1,2) == "-w") then
+   --    --print("ROB width:")
+   --    rob_w = tonumber(v:sub(3))
+   elseif (v:sub(1,2) == "-d") then
+      --print("ROB depth:")
+      rob_d = tonumber(v:sub(3))
+   elseif (v:sub(1,2) == "-s") then
+      --print("minimum superblock size:")
+      sb_size = tonumber(v:sub(3))
+   elseif (v:sub(1,2) == "-q") then
+      --print("minimum superblock size:")
+      quit_at = tonumber(v:sub(3))
+   elseif (v:sub(1,2) == "-mg") then
+      --print("minimum superblock size:")
+      sb_merge = true
+   end
+end
+
+-- collection of all the buffered sb's, key is the addr, val is the sb
+local sbs = {}
+local sbs_run = {}
+
+-- re-order buffer that contains the super blocks awaiting for issuing
+local rob = {}
+
+function init_rob(rob, MAX, WIDTH)
+   -- the rob.buf is a list of list, as each level of the rob shall
+   -- contain several sb's that with the same depth
+   -- E.g. with MAX=3 and WIDTH=2, it looks like
+   -- {{l00,l01},{l10,l11},{l20,l21}}
+   rob.buf = List.new()
+   rob.MAX = MAX
+   rob.WIDTH = WIDTH
 end
 
 -- Core
@@ -60,15 +109,50 @@ end
 function Core.run()
    local clocks = 0
    local isum = 0
+   local clk_expand = 0		-- expanded by inter-core register sync delay
    for i=1, Core.num do
       local c = Core[i]
       if clocks < c.inst_pend then clocks = c.inst_pend end
       isum = isum + c.inst_pend
       c.inst_total = c.inst_total + c.inst_pend
       c.inst_pend = 0
+
+      local b = c.inst
+      if b then 
+	 local r_in_off, r_out_off, rio = b.reg_in_offset, b.reg_out_offset, b.reg_io
+	 local delay_expand = 0
+	 for i, v in ipairs(rio) do
+	    if v.io == 'i' then
+	       local dep = sbs_run[v.dep] -- the register producer block
+	       if dep then
+		  logd('blk', b.addr, 'dep on', dep.addr, 'with', v.reg, dep.reg_out_offset)
+		  local cur_offset = r_in_off[v.reg] + delay_expand
+		  local dep_offset = dep.reg_out_offset[v.reg] 
+		  -- NOTE dep_offset might be nil as the dep is an old
+		  -- instance, which leads to a fake dep
+		  if dep_offset and  cur_offset <= dep_offset + reg_sync_delay then
+		     delay_expand = delay_expand + dep_offset + reg_sync_delay - cur_offset
+		  end
+	       end
+	    elseif v.io == 'o' and delay_expand > 0 then
+	       r_out_off[v.reg] = r_out_off[v.reg] + delay_expand
+	    end
+	 end
+	 if clk_expand < delay_expand then clk_expand = delay_expand end
+      end
+      
    end
 
-   Core.clocks = Core.clocks + clocks
+   Core.clocks = Core.clocks + clocks + clk_expand
+
+   for i=1, Core.num do
+      local c = Core[i]
+      local b = c.inst
+      if b then
+	 sbs_run[b.addr] = nil
+	 c.inst = nil
+      end
+   end
 
    -- the following code is used for policy to run until at least one
    -- core is free (finishes its pending instructions)
@@ -109,21 +193,12 @@ local sb_addr = 0
 local deps = {}
 local sb_weight = 0
 
--- collection of all the buffered sb's, key is the addr, val is the sb
-local sbs = {}
+local reg_out_offset = {}
+local reg_in_offset = {}
+local reg_io = {}
 
--- re-order buffer that contains the super blocks awaiting for issuing
-local rob = {}
+local blk_seq = 0
 
-function init_rob(rob, MAX, WIDTH)
-   -- the rob.buf is a list of list, as each level of the rob shall
-   -- contain several sb's that with the same depth
-   -- E.g. with MAX=3 and WIDTH=2, it looks like
-   -- {{l00,l01},{l10,l11},{l20,l21}}
-   rob.buf = List.new()
-   rob.MAX = MAX
-   rob.WIDTH = WIDTH
-end
 
 -- we are entering a new superblock
 function start_sb(addr)
@@ -220,7 +295,9 @@ function issue_sb(rob)
 	 local core = Core.get_free_core()
 	 core.inst_pend = core.inst_pend + v.w
 	 core.sb_cnt = core.sb_cnt + 1
+	 core.inst = v
 
+	 sbs_run[v.addr] = sbs[v.addr]
 	 sbs[v.addr] = nil
       end      
 
@@ -229,42 +306,15 @@ function issue_sb(rob)
    end
 end
 
--- the parameters that affects the parallelism 
-local core_num = 16
-local rob_w = 16
-local rob_d = 8
-local sb_size = 50
-local sb_merge = false
-local quit_at = 300000
-
-for i, v in ipairs(arg) do
-   --print(type(v))
-   if (v:sub(1,2) == "-c") then
-      --print("core number:")
-      core_num = tonumber(v:sub(3))
-   -- elseif (v:sub(1,2) == "-w") then
-   --    --print("ROB width:")
-   --    rob_w = tonumber(v:sub(3))
-   elseif (v:sub(1,2) == "-d") then
-      --print("ROB depth:")
-      rob_d = tonumber(v:sub(3))
-   elseif (v:sub(1,2) == "-s") then
-      --print("minimum superblock size:")
-      sb_size = tonumber(v:sub(3))
-   elseif (v:sub(1,2) == "-q") then
-      --print("minimum superblock size:")
-      quit_at = tonumber(v:sub(3))
-   elseif (v:sub(1,2) == "-mg") then
-      --print("minimum superblock size:")
-      sb_merge = true
-   end
-end
-
 
 -- the current superblock ends, we'll analyze it here
 function end_sb()
    -- build the superblock
    local sb = {}
+
+   sb.seq = blk_seq
+   blk_seq = blk_seq + 1
+
    sb['addr'] = sb_addr
    sb['w'] = sb_weight
    sb['deps'] = deps
@@ -280,6 +330,10 @@ function end_sb()
    sb.dep_mem_cnt = dep_mem_cnt
    sb.dep_reg_cnt = dep_reg_cnt
 
+   sb.reg_out_offset = reg_out_offset
+   sb.reg_in_offset = reg_in_offset
+   sb.reg_io = reg_io
+
    sbs[sb_addr] = sb
    -- io.write(sb_addr.."<=")
    -- for k, v in pairs(deps) do
@@ -289,9 +343,13 @@ function end_sb()
    place_sb(rob, sb)
    issue_sb(rob)
 
+   -- FIXME do this in the init_sb()
    deps = {}
    mem_input = {}
    reg_input = {}
+   reg_out_offset = {}
+   reg_in_offset = {}
+   reg_io = {}
 
    -- to halt at 3000000 clocks
    if Core.clocks >= quit_at then
@@ -358,14 +416,22 @@ function parse_lackey_log(sb_size, sb_merge)
 	 elseif k == ' P' then
 	    local reg_o, offset_sb = string.match(line:sub(4), "(%d+) (%d+)")
 	    reg_writer[tonumber(reg_o)] = sb_addr
+	    -- reg_writer_seq[tonumber(reg_o)] = blk_seq
+	    reg_out_offset[reg_o] = offset_sb
+	    reg_io[#reg_io + 1] = {io='o', reg=reg_o}
+	    logd("P", sb_addr, reg_o, offset_sb, reg_out_offset)
 	 elseif k == ' G' then
 	    reg_i, offset_sb = string.match(line:sub(4), "(%d+) (%d+)")
 	    local d_addr = tonumber(reg_i)
 	    local dep = reg_writer[d_addr]
+	    -- if dep and dep ~= sb_addr and blk_seq ~= reg_writer_seq[d_addr] then
 	    if dep and dep ~= sb_addr then 
 	       -- io.write("G "..line:sub(4).." ")
 	       add_depended(dep) 
 	       reg_input[d_addr] = 1
+	       reg_in_offset[reg_i] = offset_sb
+	       reg_io[#reg_io + 1] = {io='i', reg=reg_i, dep=dep}
+	       logd("G", sb_addr, reg_i, offset_sb, dep)
 	    end
 	 -- elseif k == ' D' then
 	 --    add_depended(line:sub(4))
