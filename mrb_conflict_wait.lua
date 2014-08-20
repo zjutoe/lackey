@@ -300,7 +300,7 @@ function parse_lackey_log(sb_size, sb_merge)
 		  weight_max = 0
 		  reg_writer = {}
 		  
-		  if gclk > quit_at then
+		  if quit_at > 0 and gclk > quit_at then
 		     summarize()
 		     os.exit()
 		  end

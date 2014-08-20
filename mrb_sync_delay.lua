@@ -352,7 +352,7 @@ function end_sb()
    reg_io = {}
 
    -- to halt at 3000000 clocks
-   if Core.clocks >= quit_at then
+   if quit_at > 0 and Core.clocks >= quit_at then
       summarize()
       os.exit()
    end
