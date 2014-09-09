@@ -260,7 +260,8 @@ function issue_sb(rob)
       -- to make room for more sb's
       Core.run()
 
-      -- fill the leading line till it is full
+      -- fill the leading line till it is full. later blocks are
+      -- pulled from following lines
       if List.size(l) < rob.WIDTH then
 	 local nextline = List.popleft(buf)
 	 while nextline do
