@@ -9,12 +9,6 @@
 
 local List = require "list"
 
--- the parameters that affects the parallelism 
-local core_num = 16
-local rob_d = 8
-local sb_size = 50
-local deep_arrange = false
-
 function logd(...)
    -- print(...)
 end
@@ -173,34 +167,16 @@ function place_sb(rob, sb)
       if d <= v.d then d = v.d end
    end
 
+   -- look for a non-full line which can hold the sb
    found_slot = false
    local l
-
-   -- look for a non-full line which can hold the sb
-
-
-   if not deep_arrange then
-      -- we shall regard the following code as W/O DEEP code block rearrangement   
-      -- a block can only run as early as in parallel with its
-      -- predecessors, but should never run before any of its
-      -- predecessors (should never surpass its predecessors)
-      if d < buf.last then
-	 d = buf.last
-	 l = buf[d]
-	 if #l < rob.WIDTH then
-	    found_slot = true
-	 end
+   for i=d+1, buf.last do
+      l = buf[i]
+      if #l < rob.WIDTH then 
+	 found_slot = true 
+	 d = i
+	 break
       end
-   else
-      -- we shall regard the following code as W/ DEEP code block rearrangement   
-      for i=d+1, buf.last do
-	 l = buf[i]
-	 if #l < rob.WIDTH then 
-	    found_slot = true 
-	    d = i
-	    break
-	 end
-      end   
    end
 
    if not found_slot then
@@ -216,11 +192,32 @@ function place_sb(rob, sb)
 end				-- function place_sb(rob, sb)
 
 
+local ffi = require 'ffi'
+
+ffi.cdef[[
+
+      typedef struct {
+	 unsigned int	address;
+	 char		accesstype;
+	 unsigned short	size;		/* of memory referenced, in bytes */
+      } d4memref;
+
+      int do_cache_init(void);
+      int do_cache_ref(d4memref r);
+]]
+
+d4lua = ffi.load('../../DineroIV/d4-7/libd4lua.so')
+
+d4lua.do_cache_init()
+
+local memref = ffi.new("d4memref")
+
+
 -- issue a line of sb's from the rob when necessary
 function issue_sb(rob)
    local buf = rob.buf
    if List.size(buf) > rob.MAX then
-      local l = List.popleft(buf) -- a line of sb's to issue
+      local l = List.popleft(buf)
       local w_sum = 0
       local w_max = 0
       local width = 0
@@ -308,11 +305,21 @@ function issue_sb(rob)
 
 	 for i, addr in ipairs(v.mem_input) do
 	    mem_io_cnt = mem_io_cnt + 1
-	    logd(string.format("%d 0 %s 4 d%d", core.id, addr, mem_io_cnt))
+	    -- print(string.format("%d 0 %s 4 d%d", core.id, addr, mem_io_cnt))
+	    memref.accesstype = 0
+	    memref.address = addr and tonumber(addr) or 0
+	    memref.size = 4
+	    local miss = d4lua.do_cache_ref(memref)
+	    if (miss > 0) then print("read miss: ", miss) end
 	 end
 	 for i, addr in ipairs(v.mem_output) do
 	    mem_io_cnt = mem_io_cnt + 1
-	    logd(string.format("%d 1 %s 4 d%d", core.id, addr, mem_io_cnt))
+	    -- print(string.format("%d 1 %s 4 d%d", core.id, addr, mem_io_cnt))
+	    memref.accesstype = 1
+	    memref.address = addr and tonumber(addr) or 0
+	    memref.size = 4
+	    local miss = d4lua.do_cache_ref(memref)
+	    if (miss > 0) then print("write miss: ", miss) end
 	 end
 
 	 logd("SB "..v.addr.." issued to core "..core.id.." reg_sync_push= "..reg_sync_push.."/"..#v.reg_output.." reg_sync_pull= "..reg_sync_pull.."/"..#v.reg_input)
@@ -336,6 +343,10 @@ function issue_sb(rob)
    end
 end
 
+-- the parameters that affects the parallelism 
+local core_num = 16
+local rob_d = 8
+local sb_size = 50
 
 function summarize() 
    -- summarize
@@ -380,11 +391,11 @@ function end_sb()
    place_sb(rob, sb)
    issue_sb(rob)
 
-   -- -- to halt at 1000000 clocks
-   -- if Core.clocks >= 300000 then
-   --    summarize()
-   --    os.exit()
-   -- end
+   -- to halt at 1000000 clocks
+   if Core.clocks >= 100000 then
+      summarize()
+      os.exit()
+   end
 
    deps = {}
    reg_input = {}
@@ -420,37 +431,37 @@ function parse_lackey_log(sb_size)
 	       end_sb()
 	       start_sb(line:sub(4))	       
 	       weight_accu = 0
-	       i = 0
 	    end
 	 elseif k == ' P' then
 	    reg_p = reg_p + 1	    
 
-	    local reg_no = tonumber(line:sub(4))
-	    reg_writer[reg_no] = sb_addr
+	    local reg_o, offset_sb = string.match(line:sub(4), "(%d+) (%d+)")
+	    reg_writer[tonumber(reg_o)] = sb_addr
+	    -- local reg_no = tonumber(line:sub(4))
+	    -- reg_writer[reg_no] = sb_addr
 	    reg_output[#reg_output + 1] = reg_no
 	    
 	 elseif k == ' G' then
 	    reg_g = reg_g + 1
 
-	    local reg_no = tonumber(line:sub(4))
-	    local dep = reg_writer[reg_no]
+	    -- local reg_no = tonumber(line:sub(4))
+	    -- local dep = reg_writer[reg_no]
+	    local reg_i, offset_sb = string.match(line:sub(4), "(%d+) (%d+)")
+	    local d_addr = tonumber(reg_i)
+	    local dep = reg_writer[d_addr]
+
 	    if dep and dep ~= sb_addr then 
 	       -- io.write("G "..reg_no.." ")
 	       add_depended(dep) 
-	       reg_input[#reg_input + 1] = reg_no
+	       reg_input[#reg_input + 1] = d_addr
 	    end
 
 	 elseif k == ' L' then
 	    local addr = line:sub(4, 11)
-	    -- we will pretend to not know the addr yet, and will
-	    -- handl the load/store in execution phase (function
-	    -- issue_sb)
-	    -- mem_input[#mem_input + 1] = {["addr"]=addr, ["pc"]=i}
 	    mem_input[#mem_input + 1] = addr
 
 	 elseif k == ' S' then
 	    local addr = line:sub(4, 11)
-	    -- mem_output[#mem_output + 1] = {["addr"]=addr, ["pc"]=i}
 	    mem_output[#mem_output + 1] = addr
 
 	 elseif k == ' W' then
@@ -463,32 +474,26 @@ function parse_lackey_log(sb_size)
 end				--  function parse_lackey_log()
 
 
-function parse_arg(arg) 
 
-   for i, v in ipairs(arg) do
-      if (v:sub(1,2) == "-D") then
-	 --print("Deep Arrange:")
-	 deep_arrange = true
-	 --print(type(v))
-      elseif (v:sub(1,2) == "-c") then
-	 --print("core number:")
-	 core_num = tonumber(v:sub(3))
-      elseif (v:sub(1,2) == "-d") then
-	 --print("ROB depth:")
-	 rob_d = tonumber(v:sub(3))
-      elseif (v:sub(1,2) == "-s") then
-	 --print("minimum superblock size:")
-	 sb_size = tonumber(v:sub(3))
-      elseif (v:sub(1,2) == "-a") then
-	 core_affili = true
-      elseif (v:sub(1,2) == "-v") then
-	 verbose = true
-      end
+for i, v in ipairs(arg) do
+   --print(type(v))
+   if (v:sub(1,2) == "-c") then
+      --print("core number:")
+      core_num = tonumber(v:sub(3))
+   elseif (v:sub(1,2) == "-d") then
+      --print("ROB depth:")
+      rob_d = tonumber(v:sub(3))
+   elseif (v:sub(1,2) == "-s") then
+      --print("minimum superblock size:")
+      sb_size = tonumber(v:sub(3))
+   elseif (v:sub(1,2) == "-a") then
+      core_affili = true
+   elseif (v:sub(1,2) == "-v") then
+      verbose = true
    end
-   
-end				-- parse_arg()
+end
 
-parse_arg(arg)
+--Prof.start("mrb.prof.data")
 
 for i=1, core_num do
    Core.new()
