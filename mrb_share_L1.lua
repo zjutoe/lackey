@@ -465,7 +465,7 @@ function parse_lackey_log(sb_size)
 	    reg_writer[tonumber(reg_o)] = sb_addr
 	    -- local reg_no = tonumber(line:sub(4))
 	    -- reg_writer[reg_no] = sb_addr
-	    reg_output[#reg_output + 1] = reg_no
+	    reg_output[#reg_output + 1] = tonumber(reg_o)
 	    
 	 elseif k == ' G' then
 	    reg_g = reg_g + 1
