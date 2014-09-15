@@ -404,19 +404,27 @@ function parse_lackey_log(sb_size)
 	 elseif k == ' P' then
 	    reg_p = reg_p + 1	    
 
-	    local reg_no = tonumber(line:sub(4))
-	    reg_writer[reg_no] = sb_addr
-	    reg_output[#reg_output + 1] = reg_no
+	    local reg_o, offset_sb = string.match(line:sub(4), "(%d+) (%d+)")
+	    reg_writer[tonumber(reg_o)] = sb_addr
+	    reg_output[#reg_output + 1] = tonumber(reg_o)
+	    -- local reg_no = tonumber(line:sub(4))
+	    -- reg_writer[reg_no] = sb_addr
+	    -- reg_output[#reg_output + 1] = reg_no
 	    
 	 elseif k == ' G' then
 	    reg_g = reg_g + 1
 
-	    local reg_no = tonumber(line:sub(4))
-	    local dep = reg_writer[reg_no]
+
+	    -- local reg_no = tonumber(line:sub(4))
+	    -- local dep = reg_writer[reg_no]
+	    local reg_i, offset_sb = string.match(line:sub(4), "(%d+) (%d+)")
+	    local d_addr = tonumber(reg_i)
+	    local dep = reg_writer[d_addr]
+
 	    if dep and dep ~= sb_addr then 
 	       -- io.write("G "..reg_no.." ")
 	       add_depended(dep) 
-	       reg_input[#reg_input + 1] = reg_no
+	       reg_input[#reg_input + 1] = d_addr
 	    end
 
 	 elseif k == ' L' then
