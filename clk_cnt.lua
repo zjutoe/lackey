@@ -1,28 +1,16 @@
 -- Usage: 
 
--- 0. prepare the traces: test/*_rob.log, test/cpu?-dinero.log. The
---   *_rob.log is the execution trace output by mrb_private_L1.lua,
---   and the cpu?-dinero.log are output from Dinero, which is invoked
---   by test_cache.sh
+-- 0. prepare the traces: test/*_rob.log, test/cpu?-dinero. The
+-- *_rob.log is the execution trace output by mrb_private_L1.lua, and
+-- the cpu?-dinero are output from Dinero, which is invoked by
+-- test_cache.sh
 
 -- 1. luajit clk_cnt.lua
 
 
 local miss_delay = 1
 
-function clk_add_delay(f_rob_exe_log, 
-		       f_miss_log1, 
-		       f_miss_log2,
-		       f_miss_log3, 
-		       f_miss_log4)
-
-   local rob_exe_log = assert(io.open(f_rob_exe_log, "r"))
-
-   local miss_log = {}
-   miss_log[1] = assert(io.open(f_miss_log1, "r"))
-   miss_log[2] = assert(io.open(f_miss_log2, "r"))
-   miss_log[3] = assert(io.open(f_miss_log3, "r"))
-   miss_log[4] = assert(io.open(f_miss_log4, "r"))
+function clk_add_delay(rob_exe_log, miss_log)
 
    local clkcount = 0
    local addr, current_core = 0, 1
@@ -79,5 +67,16 @@ function clk_add_delay(f_rob_exe_log,
 
 end
 
-clk_add_delay("./test/date_rob.log", "./test/cpu1.dinero", "./test/cpu2.dinero", "./test/cpu3.dinero", "./test/cpu4.dinero")
+function open_traces(sched, ...)
+   local _sched = assert(io.open(sched, "r"))
+   
+   local _mref = {}
+   for i, v in ipairs{...} do
+      _mref[i] = assert(io.open(v, "r"))
+   end
+
+   return _sched, _mref
+end
+
+clk_add_delay(open_traces("./test/date_rob.log", "./test/cpu1.dinero", "./test/cpu2.dinero", "./test/cpu3.dinero", "./test/cpu4.dinero"))
 
