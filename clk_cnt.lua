@@ -1,4 +1,4 @@
-local miss_delay = 4
+local miss_delay = 1
 
 function clk_add_delay(f_rob_exe_log, 
 		       f_miss_log1, 
@@ -44,30 +44,28 @@ function clk_add_delay(f_rob_exe_log,
 	    c.clk_pend = c.clk_pend + icount_sb + misscnt_sb * miss_delay
 
 	    -- 
-	    addr, current_core, _icount = string.match(line:sub(4), "(%d+) (%d+) (%d+)")
+	    addr, current_core, _icount = string.match(line:sub(4), "(%x+) (%d+) (%d+)")
 	    icount_sb = tonumber(_icount)
 	 else
 	    -- now it is a memory reference, let's check the miss log
 	    -- and see how much latency it causes
-	    print("access by core", current_core)
+	    
 	    local mlog = miss_log[tonumber(current_core)]
 	    local miss_record = mlog:read("*line")
-	    while miss_record:sub(1,4) ~= "miss" do
-	        miss_record = mlog:read("*line")
-	    end
+	    if not miss_record then break end
 	    misscnt_sb = misscnt_sb + tonumber(miss_record:sub(6))
 	 end
       end
       
    end				-- for exe in rob_exe_log.lines()
 
-   local icount, delaycount
+   local icount, delaycount = 0, 0
 
    for k, v in pairs(core) do
       icount = icount + v.icount
       delaycount = delaycount + v.delay_count
    end
-   print(string.format("executed %d insts in %d clks", icount, clkcount))   
+   print(string.format("executed %d insts in %d clks: CPI=", icount, clkcount), clkcount/icount)   
 
 end
 
