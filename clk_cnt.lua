@@ -45,7 +45,7 @@ function clk_add_delay(rob_exe_log, miss_log)
 	    -- 
 	    addr, current_core, _icount = string.match(line:sub(4), "(%x+) (%d+) (%d+)")
 	    icount_sb = tonumber(_icount)
-	 else
+	 elseif #miss_log > 0 then
 	    -- now it is a memory reference, let's check the miss log
 	    -- and see how much latency it causes
 	    
@@ -79,5 +79,6 @@ function open_traces(sched, ...)
    return _sched, _mref
 end
 
-clk_add_delay(open_traces("./test/date_rob.log", "./test/cpu1.dinero", "./test/cpu2.dinero", "./test/cpu3.dinero", "./test/cpu4.dinero"))
+-- clk_add_delay(open_traces("./test/date_rob.log", "./test/cpu1.dinero", "./test/cpu2.dinero", "./test/cpu3.dinero", "./test/cpu4.dinero"))
+clk_add_delay(open_traces("./test/date_rob.log"))
 
