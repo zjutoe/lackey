@@ -10,7 +10,7 @@
 
 local miss_delay = 1
 
-function clk_add_delay(rob_exe_log, miss_log)
+function clk_add_delay(core_num, rob_exe_log, miss_log)
 
    local clkcount = 0
    local addr, current_core = 0, 1
@@ -20,7 +20,7 @@ function clk_add_delay(rob_exe_log, miss_log)
 
    -- #core = #miss_log
    local core = {}
-   for i=1, #miss_log do
+   for i=1, core_num do
       core[i] = {icount = 0, delay_count = 0, clk_pend = 0}
    end
 
@@ -79,6 +79,6 @@ function open_traces(sched, ...)
    return _sched, _mref
 end
 
--- clk_add_delay(open_traces("./test/date_rob.log", "./test/cpu1.dinero", "./test/cpu2.dinero", "./test/cpu3.dinero", "./test/cpu4.dinero"))
-clk_add_delay(open_traces("./test/date_rob.log"))
+-- clk_add_delay(4, open_traces("./test/date_rob.log", "./test/cpu1.dinero", "./test/cpu2.dinero", "./test/cpu3.dinero", "./test/cpu4.dinero"))
+clk_add_delay(4, open_traces("./test/date_rob.log"))
 
