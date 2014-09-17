@@ -17,11 +17,12 @@ function clk_add_delay(rob_exe_log, miss_log)
    local icount_sb = 0
    local accesstype, daddr, dsize
    local misscnt_sb = 0
+
+   -- #core = #miss_log
    local core = {}
-   core[1] = {icount = 0, delay_count = 0, clk_pend = 0}
-   core[2] = {icount = 0, delay_count = 0, clk_pend = 0}
-   core[3] = {icount = 0, delay_count = 0, clk_pend = 0}
-   core[4] = {icount = 0, delay_count = 0, clk_pend = 0}
+   for i=1, #miss_log do
+      core[i] = {icount = 0, delay_count = 0, clk_pend = 0}
+   end
 
    for line in rob_exe_log:lines() do
       if line:sub(1,2) ~= "#" then	 
