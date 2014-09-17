@@ -1,3 +1,13 @@
+-- Usage: 
+
+-- 0. prepare the traces: test/*_rob.log, test/cpu?-dinero.log. The
+--   *_rob.log is the execution trace output by mrb_private_L1.lua,
+--   and the cpu?-dinero.log are output from Dinero, which is invoked
+--   by test_cache.sh
+
+-- 1. luajit clk_cnt.lua
+
+
 local miss_delay = 1
 
 function clk_add_delay(f_rob_exe_log, 
