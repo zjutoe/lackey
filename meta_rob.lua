@@ -64,6 +64,8 @@ end
 local mem_writer = {}
 -- to record which SB writes to a specific register
 local reg_writer = {}
+-- the memory access sequence
+local mem_access = {}
 
 -- data input of the current SB
 local mem_input = {}
@@ -80,7 +82,6 @@ local reg_in_offset = {}
 local reg_io = {}
 
 local blk_seq = 0
-
 
 -- we are entering a new superblock
 function start_sb(addr)
@@ -152,8 +153,12 @@ function issue_sb(rob)
 	    w_max = 0 + v.w
 	 end
 
-	 print(cid, v.addr, v.w)
+	 print(string.format('SB %s %d %d', v.addr, cid, v.w))
 	 cid = cid + 1
+
+	 for _, mem_rw in ipairs(v.mem_access) do
+	    print(string.format('MEM %d %x', mem_rw.type, mem_rw.addr))
+	 end	 
 
 	 sbs_run[v.addr] = sbs[v.addr]
 	 sbs[v.addr] = nil
@@ -176,6 +181,7 @@ function end_sb()
    sb['addr'] = sb_addr
    sb['w'] = sb_weight
    sb['deps'] = deps
+   sb['mem_access'] = mem_access
 
    local dep_mem_cnt, dep_reg_cnt = 0, 0
    for k, v in pairs(mem_input) do
@@ -204,6 +210,7 @@ function end_sb()
    -- FIXME do this in the init_sb()
    deps = {}
    mem_input = {}
+   mem_access = {}
    reg_input = {}
    reg_out_offset = {}
    reg_in_offset = {}
@@ -222,7 +229,6 @@ function set_sb_weight(w)
    sb_weight = w
 end
 
-
 function parse_lackey_log(sb_size, sb_merge)
    local i = 0
    local weight_accu = 0
@@ -238,10 +244,15 @@ function parse_lackey_log(sb_size, sb_merge)
 	       start_sb(line:sub(4))	       
 	       weight_accu = 0
 	    end
+	 -- elseif k == 'I ' then	    
 	 elseif k == ' S' then
-	    mem_writer[tonumber(line:sub(4,11), 16)] = sb_addr
+	    local d_addr = tonumber(line:sub(4,11), 16)
+	    mem_writer[d_addr] = sb_addr
+	    mem_access[#mem_access + 1] = {type=1, addr=d_addr}
 	 elseif k == ' L' then
 	    local d_addr = tonumber(line:sub(4,11), 16)
+	    mem_access[#mem_access + 1] = {type=0, addr=d_addr}
+
 	    local dep = mem_writer[d_addr]
 	    if dep and dep ~= sb_addr then 
 	       -- io.write("L "..line:sub(4,11).." ")
