@@ -1,8 +1,5 @@
 #!/usr/bin/env lua
 
--- to simulate the RoB with shared L1 cache
--- the cache is simulated with DineroIV, which is integrated now (the d4lua)
-
 --local Prof = require "profiler"
 
 -- TODO: different instances of the same sb shall be treated as different sb's
@@ -21,16 +18,12 @@ local reg_rename_tab = {}
 local core_affili = false
 local verbose = false
 
-local L1Delay = 0.4
-local L2Delay = 0
-
 -- Core
 -- to manage all the cores in the processor
 Core = {num=0, clocks=0, regsync_push=0, regsync_pull=0}
 function Core.new()
    local core_id = Core.num + 1
-   local core = {id=core_id, clk_total=0, inst_total=0, delay_total=0, 
-		 inst_pend=0, delay_pend=0, sb_cnt=0, busy=false}
+   local core = {id=core_id, inst_total=0, inst_pend=0, sb_cnt=0, busy=false}
 
    Core[core_id] = core
    Core.num = Core.num + 1
@@ -57,25 +50,25 @@ function Core.get_free_core()
 end
 
 -- TODO we shall do the work in Core.run() directly
--- function Core.tick(clocks)
+function Core.tick(clocks)
 
---    local core
+   local core
 
---    for i=1, Core.num do
---       core = Core[i]
---       if core.inst_pend >= clocks then
--- 	 core.inst_total = core.inst_total + clocks
--- 	 core.inst_pend = core.inst_pend - clocks
---       else
--- 	 core.inst_total = core.inst_total + core.inst_pend
--- 	 core.inst_pend = 0
---       end
---    end   
+   for i=1, Core.num do
+      core = Core[i]
+      if core.inst_pend >= clocks then
+	 core.inst_total = core.inst_total + clocks
+	 core.inst_pend = core.inst_pend - clocks
+      else
+	 core.inst_total = core.inst_total + core.inst_pend
+	 core.inst_pend = 0
+      end
+   end   
 
---    Core.clocks = Core.clocks + clocks
---    -- TODO add a switch verbose or terse
---    -- logd(i_sum, ' in ', clocks, 'clocks')
--- end
+   Core.clocks = Core.clocks + clocks
+   -- TODO add a switch verbose or terse
+   -- logd(i_sum, ' in ', clocks, 'clocks')
+end
 
 -- drain all the cores
 function Core.run()
@@ -83,15 +76,10 @@ function Core.run()
    local isum = 0
    for i=1, Core.num do
       local c = Core[i]
-
-      if clocks < c.inst_pend + c.delay_pend then
-	 clocks = c.inst_pend + c.delay_pend 
-      end
+      if clocks < c.inst_pend then clocks = c.inst_pend end
       isum = isum + c.inst_pend
       c.inst_total = c.inst_total + c.inst_pend
       c.inst_pend = 0
-      c.delay_total = c.delay_total + c.delay_pend
-      c.delay_pend = 0
       c.busy = false
    end
 
@@ -204,27 +192,6 @@ function place_sb(rob, sb)
 end				-- function place_sb(rob, sb)
 
 
-local ffi = require 'ffi'
-
-ffi.cdef[[
-
-      typedef struct {
-	 unsigned int	address;
-	 char		accesstype;
-	 unsigned short	size;		/* of memory referenced, in bytes */
-      } d4memref;
-
-      int do_cache_init(void);
-      int do_cache_ref(d4memref r);
-]]
-
-d4lua = ffi.load('../../DineroIV/d4-7/libd4lua.so')
-
-d4lua.do_cache_init()
-
-local memref = ffi.new("d4memref")
-
-
 -- issue a line of sb's from the rob when necessary
 function issue_sb(rob)
    local buf = rob.buf
@@ -241,8 +208,16 @@ function issue_sb(rob)
       logd('issue:')
       local reg_sync_push_line, reg_sync_pull_line = 0, 0
 
+      print("ISSUE")
+
       for k, v in pairs(l) do
 	 width = width + 1
+	 -- TODO add a switch verbose or terse
+	 logd('     ', v.addr, v.w)
+	 w_sum = w_sum + v.w
+	 if w_max < 0 + v.w then
+	    w_max = 0 + v.w
+	 end
 
 	 -- dispatch the sb to a free core
 	 local core
@@ -309,43 +284,14 @@ function issue_sb(rob)
 	    end
 	 end
 
-	 core.delay_pend = 0
+	 print(string.format("SB %s %d %d ", v.addr, core.id, v.w))
 	 for i, addr in ipairs(v.mem_input) do
 	    mem_io_cnt = mem_io_cnt + 1
-	    -- print(string.format("%d 0 %s 4 d%d", core.id, addr, mem_io_cnt))
-	    memref.accesstype = 0
-	    memref.address = addr and tonumber(addr) or 0
-	    memref.size = 4
-
-	    -- cache read delay
-	    core.delay_pend = core.delay_pend + L1Delay
-	    local miss = d4lua.do_cache_ref(memref)
-	    if (miss > 0) then 
-	       -- print("read miss: ", miss) 
-	       core.delay_pend = core.delay_pend + L2Delay
-	    end
+	    print(string.format("%d 0 %s 4 d%d", core.id, addr, mem_io_cnt))
 	 end
 	 for i, addr in ipairs(v.mem_output) do
 	    mem_io_cnt = mem_io_cnt + 1
-	    -- print(string.format("%d 1 %s 4 d%d", core.id, addr, mem_io_cnt))
-	    memref.accesstype = 1
-	    memref.address = addr and tonumber(addr) or 0
-	    memref.size = 4
-
-	    -- cache write delay
-	    core.delay_pend = core.delay_pend + L1Delay
-	    local miss = d4lua.do_cache_ref(memref)
-	    if (miss > 0) then
-	       -- print("write miss: ", miss) 
-	       core.delay_pend = core.delay_pend + L2Delay
-	    end
-	 end
-
-	 -- TODO add a switch verbose or terse
-	 logd('     ', v.addr, v.w)
-	 w_sum = w_sum + v.w
-	 if w_max < 0 + v.w then
-	    w_max = 0 + v.w
+	    print(string.format("%d 1 %s 4 d%d", core.id, addr, mem_io_cnt))
 	 end
 
 	 logd("SB "..v.addr.." issued to core "..core.id.." reg_sync_push= "..reg_sync_push.."/"..#v.reg_output.." reg_sync_pull= "..reg_sync_pull.."/"..#v.reg_input)
@@ -418,7 +364,7 @@ function end_sb()
    issue_sb(rob)
 
    -- to halt at 1000000 clocks
-   if Core.clocks >= 100000 then
+   if Core.clocks >= 300000 then
       summarize()
       os.exit()
    end

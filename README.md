@@ -25,6 +25,14 @@ lackey_trace.log: the trace of valgrind lackey plugin
 TODO
 ====
 
+refactor the whole system to pipeline/file stream connected components:
+
+1. execution trace from Valgrind or Qemu
+
+2. RoB scheduler to schedule the blocks
+
+3. cores to simulate the execution, i.e. the pipeline, the cache access, inter-core register sync, etc.
+
 To collect data for 3 different strategies of inter-core register value sharing:
 
 1. to sync up all updated registers among rounds of execution:
