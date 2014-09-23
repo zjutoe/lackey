@@ -141,7 +141,7 @@ function issue_sb(rob)
       local width = 0
 
       -- TODO add a switch verbose or terse
-      print('issue', List.size(l))
+      print('ISSUE', List.size(l))
       
       local cid = 1
       while List.size(l) > 0 do

@@ -10,7 +10,7 @@
 
 local miss_delay = 1
 
-function clk_add_delay(core_num, rob_exe_log, miss_log)
+function exe_blocks(core_num, rob_exe_log, miss_log)
 
    local clkcount = 0
    local addr, current_core = 0, 1
@@ -29,11 +29,14 @@ function clk_add_delay(core_num, rob_exe_log, miss_log)
 	 if line:sub(1,5) == "ISSUE" then
 	    -- a line of blocks get issued
 	    local max_clk = 0
-	    for k, v in pairs(core) do
-	       if max_clk < v.clk_pend then max_clk = v.clk_pend end
-	       v.clk_pend = 0
+	    -- io.write("EXE ")
+	    for _, c in ipairs(core) do
+	       if max_clk < c.clk_pend then max_clk = c.clk_pend end
+	       -- io.write(string.format("%d ", c.clk_pend))
+	       c.clk_pend = 0
 	    end
 	    clkcount = clkcount + max_clk
+	    -- print(' CLK', max_clk)
 
 	 elseif line:sub(1,2) == "SB" then
 	    -- summarize the previous SB 1st
@@ -45,7 +48,7 @@ function clk_add_delay(core_num, rob_exe_log, miss_log)
 	    -- 
 	    addr, current_core, _icount = string.match(line:sub(4), "(%x+) (%d+) (%d+)")
 	    icount_sb = tonumber(_icount)
-	 elseif #miss_log > 0 then
+	 elseif miss_log and #miss_log > 0 then
 	    -- now it is a memory reference, let's check the miss log
 	    -- and see how much latency it causes
 	    
@@ -68,6 +71,8 @@ function clk_add_delay(core_num, rob_exe_log, miss_log)
 
 end
 
+
+
 function open_traces(sched, ...)
    local _sched = assert(io.open(sched, "r"))
    
@@ -80,5 +85,6 @@ function open_traces(sched, ...)
 end
 
 -- clk_add_delay(4, open_traces("./test/date_rob.log", "./test/cpu1.dinero", "./test/cpu2.dinero", "./test/cpu3.dinero", "./test/cpu4.dinero"))
-clk_add_delay(4, open_traces("./test/date_rob.log"))
+-- exe_blocks(4, open_traces("./test/date_rob.log"))
+exe_blocks(4, open_traces(arg[1]))
 
