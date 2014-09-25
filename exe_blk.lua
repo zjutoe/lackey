@@ -86,5 +86,5 @@ end
 
 -- clk_add_delay(4, open_traces("./test/date_rob.log", "./test/cpu1.dinero", "./test/cpu2.dinero", "./test/cpu3.dinero", "./test/cpu4.dinero"))
 -- exe_blocks(4, open_traces("./test/date_rob.log"))
-exe_blocks(4, open_traces(arg[1]))
+exe_blocks(4, open_traces(arg[1], arg[2], arg[3], arg[4], arg[5]))
 
