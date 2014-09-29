@@ -7,6 +7,28 @@
 
 -- 1. luajit clk_cnt.lua
 
+function __FILE__() return debug.getinfo(2,'S').source end
+function __LINE__() return debug.getinfo(2, 'l').currentline end
+
+local ffi = require 'ffi'
+
+ffi.cdef[[
+
+      typedef struct {
+	 unsigned int	address;
+	 char		accesstype;
+	 unsigned short	size;		/* of memory referenced, in bytes */
+      } d4memref;
+
+      int do_cache_init(int core_id);
+      int do_cache_ref(int core_id, d4memref r);
+]]
+
+d4lua = ffi.load('../../DineroIV/d4-7/libd4lua.so')
+
+-- d4lua.do_cache_init()
+
+local r = ffi.new("d4memref")
 
 local miss_delay = 1
 
@@ -21,7 +43,10 @@ function exe_blocks(core_num, rob_exe_log, miss_log)
    -- #core = #miss_log
    local core = {}
    for i=1, core_num do
-      core[i] = {icount = 0, delay_count = 0, clk_pend = 0}
+      print("toe i=", i)
+      core[i] = {icount = 0, delay_count = 0, clk_pend = 0, ref_count = 0}
+      print("toe", __LINE__())
+      d4lua.do_cache_init(i-1);
    end
 
    for line in rob_exe_log:lines() do
@@ -48,6 +73,21 @@ function exe_blocks(core_num, rob_exe_log, miss_log)
 	    -- 
 	    addr, current_core, _icount = string.match(line:sub(4), "(%x+) (%d+) (%d+)")
 	    icount_sb = tonumber(_icount)
+
+	 elseif line:sub(1,3) == "MEM" then
+	    accesstype, daddr = string.match(line:sub(5), "(%d) (%x+)")
+	    r.accesstype = tonumber(accesstype)
+	    r.address = tonumber(daddr, 16)
+	    r.size = 4
+	    print("toe")
+	    local c = core[tonumber(current_core)]
+	    print("toe")
+	    local miss = d4lua.do_cache_ref(tonumber(current_core) - 1, r)
+	    print("toe", miss)
+	    if miss > 0 then
+	       misscnt_sb = misscnt_sb + miss
+	    end
+
 	 elseif miss_log and #miss_log > 0 then
 	    -- now it is a memory reference, let's check the miss log
 	    -- and see how much latency it causes
@@ -85,6 +125,6 @@ function open_traces(sched, ...)
 end
 
 -- clk_add_delay(4, open_traces("./test/date_rob.log", "./test/cpu1.dinero", "./test/cpu2.dinero", "./test/cpu3.dinero", "./test/cpu4.dinero"))
--- exe_blocks(4, open_traces("./test/date_rob.log"))
-exe_blocks(4, open_traces(arg[1], arg[2], arg[3], arg[4], arg[5]))
+exe_blocks(4, open_traces("./date.meta_rob.log"))
+-- exe_blocks(4, open_traces(arg[1], arg[2], arg[3], arg[4], arg[5]))
 
