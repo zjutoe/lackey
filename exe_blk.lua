@@ -48,9 +48,7 @@ function exe_blocks(core_num, rob_exe_log, miss_log)
    -- #core = #miss_log
    local core = {}
    for i=1, core_num do
-      print("toe i=", i)
       core[i] = {icount = 0, delay_count = 0, clk_pend = 0, ref_count = 0}
-      print("toe", __LINE__())
       d4lua.do_cache_init(i-1);
    end
 
