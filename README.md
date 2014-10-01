@@ -14,13 +14,9 @@ e.g. "./run.sh date"
 TODO
 ====
 
-refactor the whole system to pipeline/file stream connected components:
-
-1. execution trace from Valgrind or Qemu
-
-2. RoB scheduler to schedule the blocks
-
-3. cores to simulate the execution, i.e. the pipeline, the cache access, inter-core register sync, etc.
+OOO core: to schedule the instructions inside the block, so the memory
+access latencies are hidden. The instruction reoder should be done
+along with the block reordering, i.e. 2 levels of OOO.
 
 To collect data for 3 different strategies of inter-core register value sharing:
 
