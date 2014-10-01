@@ -26,6 +26,11 @@ ffi.cdef[[
 
 d4lua = ffi.load('../../DineroIV/d4-7/libd4lua.so')
 
+d4lua.do_cache_init(1)
+d4lua.do_cache_init(2)
+d4lua.do_cache_init(3)
+d4lua.do_cache_init(4)
+
 -- d4lua.do_cache_init()
 
 local r = ffi.new("d4memref")
@@ -79,23 +84,23 @@ function exe_blocks(core_num, rob_exe_log, miss_log)
 	    r.accesstype = tonumber(accesstype)
 	    r.address = tonumber(daddr, 16)
 	    r.size = 4
-	    print("toe")
+	    
 	    local c = core[tonumber(current_core)]
-	    print("toe")
-	    local miss = d4lua.do_cache_ref(tonumber(current_core) - 1, r)
-	    print("toe", miss)
+	    
+	    local miss = d4lua.do_cache_ref(tonumber(current_core), r)
+	    
 	    if miss > 0 then
 	       misscnt_sb = misscnt_sb + miss
 	    end
 
-	 elseif miss_log and #miss_log > 0 then
-	    -- now it is a memory reference, let's check the miss log
-	    -- and see how much latency it causes
+	    -- elseif miss_log and #miss_log > 0 then
+	    --    -- now it is a memory reference, let's check the miss log
+	    --    -- and see how much latency it causes
 	    
-	    local mlog = miss_log[tonumber(current_core)]
-	    local miss_record = mlog:read("*line")
-	    if not miss_record then break end
-	    misscnt_sb = misscnt_sb + tonumber(miss_record:sub(6))
+	    --    local mlog = miss_log[tonumber(current_core)]
+	    --    local miss_record = mlog:read("*line")
+	    --    if not miss_record then break end
+	    --    misscnt_sb = misscnt_sb + tonumber(miss_record:sub(6))
 	 end
       end
       
