@@ -60,6 +60,8 @@ function init_rob(rob, MAX, WIDTH)
    rob.WIDTH = WIDTH
 end
 
+
+local inst = {}
 -- to record which SB writes to a specific memory address
 local mem_writer = {}
 -- to record which SB writes to a specific register
@@ -156,9 +158,12 @@ function issue_sb(rob)
 	 print(string.format('SB %s %d %d', v.addr, cid, v.w))
 	 cid = cid + 1
 
-	 for _, mem_rw in ipairs(v.mem_access) do
-	    print(string.format('MEM %d %x', mem_rw.type, mem_rw.addr))
-	 end	 
+	 for _, ins in ipairs(v.inst) do
+	    print(string.format("%s %s", ins.tag, ins.addr))
+	 end
+	 -- for _, mem_rw in ipairs(v.mem_access) do
+	 --    print(string.format('MEM %d %x', mem_rw.type, mem_rw.addr))
+	 -- end	 
 
 	 sbs_run[v.addr] = sbs[v.addr]
 	 sbs[v.addr] = nil
@@ -178,6 +183,7 @@ function end_sb()
    sb.seq = blk_seq
    blk_seq = blk_seq + 1
 
+   sb['inst'] = inst
    sb['addr'] = sb_addr
    sb['w'] = sb_weight
    sb['deps'] = deps
@@ -208,6 +214,7 @@ function end_sb()
    issue_sb(rob)
 
    -- FIXME do this in the init_sb()
+   inst = {}
    deps = {}
    mem_input = {}
    mem_access = {}
@@ -241,14 +248,17 @@ function parse_lackey_log(sb_size, sb_merge)
 	    if weight_accu >= sb_size then
 	       set_sb_weight(weight_accu)
 	       end_sb()
-	       start_sb(line:sub(4))	       
+	       local addr = line:sub(4)
+	       start_sb(addr)	       
 	       weight_accu = 0
+	       inst[#inst + 1] = {tag="SB", addr=addr}
 	    end
 	 -- elseif k == 'I ' then	    
 	 elseif k == ' S' then
 	    local d_addr = tonumber(line:sub(4,11), 16)
 	    mem_writer[d_addr] = sb_addr
 	    mem_access[#mem_access + 1] = {type=1, addr=d_addr}
+	    inst[#inst + 1] = {tag="S", addr=line:sub(4,11)}
 	 elseif k == ' L' then
 	    local d_addr = tonumber(line:sub(4,11), 16)
 	    mem_access[#mem_access + 1] = {type=0, addr=d_addr}
@@ -259,6 +269,7 @@ function parse_lackey_log(sb_size, sb_merge)
 	       -- add_depended(dep) 
 	       mem_input[d_addr] = tonumber(line:sub(13))
 	    end
+	    inst[#inst + 1] = {tag="L", addr=line:sub(4,11)}
 	 elseif k == ' P' then
 	    local reg_o, offset_sb = string.match(line:sub(4), "(%d+) (%d+)")
 	    reg_writer[tonumber(reg_o)] = sb_addr
@@ -266,6 +277,7 @@ function parse_lackey_log(sb_size, sb_merge)
 	    reg_out_offset[reg_o] = offset_sb
 	    reg_io[#reg_io + 1] = {io='o', reg=reg_o}
 	    logd("P", sb_addr, reg_o, offset_sb, reg_out_offset)
+	    inst[#inst + 1] = {tag="P", addr=reg_o}
 	 elseif k == ' G' then
 	    reg_i, offset_sb = string.match(line:sub(4), "(%d+) (%d+)")
 	    local d_addr = tonumber(reg_i)
@@ -279,6 +291,7 @@ function parse_lackey_log(sb_size, sb_merge)
 	       reg_io[#reg_io + 1] = {io='i', reg=reg_i, dep=dep}
 	       logd("G", sb_addr, reg_i, offset_sb, dep)
 	    end
+	    inst[#inst + 1] = {tag="G", addr=reg_i}
 	 -- elseif k == ' D' then
 	 --    add_depended(line:sub(4))
 	 elseif k == ' W' then
