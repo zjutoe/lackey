@@ -1,8 +1,11 @@
 #!/usr/bin/env lua
 
--- input: trace from lackey tool of valgrind
+-- OOO (Out Of Order) core simulation
 
--- output: trace of code block reordering/scheduling 
+-- input: trace of code block reordering/scheduling, i.e. meta_rob.lua
+
+-- output: trace of code blocks, instructions inside super blocks are
+-- reordered
 
 
 local List = require "list"
@@ -12,9 +15,9 @@ function logd(...)
 end
 
 -- the parameters that affects the parallelism 
-local core_num = 16
-local rob_w = 16
-local rob_d = 8
+local core_num = 4
+local rob_w = 4
+local rob_d = 64
 local sb_size = 50
 local sb_merge = false
 local quit_at = 300000
@@ -236,70 +239,133 @@ function set_sb_weight(w)
    sb_weight = w
 end
 
-function parse_lackey_log(sb_size, sb_merge)
+local issue = {}
+issue.sb = {}
+
+local sb = {}
+sb.addr = 0
+sb.ins = {}
+sb.ins_hash = {}
+
+local ins = {}
+ins.addr = 0
+ins.mref = {}
+ins.dep = {}
+ins.tag = 0			-- nil
+
+
+-- recursively traverse all the dependees of ins, and mark them (if
+-- not previously marked yet)
+function mark_deps(sb, ins)
+   local q = List.new()
+   for _, d in ipairs(ins.dep) do
+      List.pushright(q, d)
+   end
+
+   while List.size(q) > 0 do
+      local d = List.popleft(q)
+      local dep_ins = sb.ins_hash[d]
+      if dep_ins and not dep_ins.mark then -- dep_ins.mark == nil
+	 dep_ins.mark = 1
+
+	 for _, dep in ipairs(dep_ins.dep) do --  recursion
+	    List.pushright(q, dep)
+	 end
+      end
+   end
+end
+
+function copy_marked_deps(sb, ins_ooo)
+   for _, ins in ipairs(sb.ins) do
+      if ins.mark and ins.mark == 1 then
+	 ins_ooo[#ins_ooo + 1] = ins
+	 ins.mark = 0
+      end
+   end
+end
+
+function parse_input(sb_size, sb_merge)
    local i = 0
    local weight_accu = 0
    for line in io.lines() do
       if line:sub(1,2) ~= '==' then
 	 i = i + 1
 	 local k = line:sub(1,2)
+	 
 	 if k == 'SB' then
-	    -- if not sb_merge or
-	    if weight_accu >= sb_size then
-	       set_sb_weight(weight_accu)
-	       end_sb()
-	       local addr = line:sub(4)
-	       start_sb(addr)	       
-	       weight_accu = 0
-	       -- inst[#inst + 1] = {tag="SB", addr=addr}
-	    end
-	 elseif k == 'I ' then	    
-	    local addr, sz = string.match(line:sub(4), "(%x+),(%d+)")
-	    inst[#inst + 1] = {tag="I", addr=addr}
-	 elseif k == ' S' then
-	    local d_addr = tonumber(line:sub(4,11), 16)
-	    mem_writer[d_addr] = sb_addr
-	    mem_access[#mem_access + 1] = {type=1, addr=d_addr}
-	    inst[#inst + 1] = {tag="S", addr=line:sub(4,11)}
-	 elseif k == ' L' then
-	    local d_addr = tonumber(line:sub(4,11), 16)
-	    mem_access[#mem_access + 1] = {type=0, addr=d_addr}
+	    issue.sb[#issue.sb + 1] = sb
+	    local addr, core, weight = string.match(line:sub(4), "(%x+) (%d) (%d)")
+	    -- print('[D]line/addr', line, tonumber(addr), 16)
+	    sb.addr = tonumber(addr, 16)
+	    sb.ins = {}
+	    sb.ins_hash = {}
+	    
+	    -- FIXME make them member of sb, i.e. sb.mem_writer,
+	    -- sb.reg_writer
+	    mem_writer = {}
+	    reg_writer = {}
 
-	    local dep = mem_writer[d_addr]
-	    if dep and dep ~= sb_addr then 
-	       -- io.write("L "..line:sub(4,11).." ")
-	       -- add_depended(dep) 
-	       mem_input[d_addr] = tonumber(line:sub(13))
+	 elseif k == 'I ' then
+	    sb.ins[#sb.ins + 1] = ins
+	    sb.ins_hash[ins.addr] = ins
+
+	    ins = {}
+	    ins.mref = {}
+	    ins.dep = {}
+	    ins.addr = tonumber(line:sub(3), 16)
+
+	 elseif k == 'S ' then
+	    local addr = tonumber(line:sub(3), 16)
+	    ins.mref[#ins.mref + 1] = {flag='S', addr=addr}
+	    mem_writer[addr] = ins.addr
+
+	 elseif k == 'L ' then
+	    local addr = tonumber(line:sub(3), 16)
+	    ins.mref[#ins.mref + 1] = {flag='L', addr=addr}
+	    local dep_addr = mem_writer[addr]
+	    if dep_addr and dep_addr ~= ins.addr then
+	       ins.dep[#ins.dep + 1] = dep_addr
 	    end
-	    inst[#inst + 1] = {tag="L", addr=line:sub(4,11)}
-	 elseif k == ' P' then
-	    local reg_o, offset_sb = string.match(line:sub(4), "(%d+) (%d+)")
-	    reg_writer[tonumber(reg_o)] = sb_addr
-	    -- reg_writer_seq[tonumber(reg_o)] = blk_seq
-	    reg_out_offset[reg_o] = offset_sb
-	    reg_io[#reg_io + 1] = {io='o', reg=reg_o}
-	    logd("P", sb_addr, reg_o, offset_sb, reg_out_offset)
-	    inst[#inst + 1] = {tag="P", addr=reg_o}
-	 elseif k == ' G' then
-	    reg_i, offset_sb = string.match(line:sub(4), "(%d+) (%d+)")
-	    local d_addr = tonumber(reg_i)
-	    local dep = reg_writer[d_addr]
-	    -- if dep and dep ~= sb_addr and blk_seq ~= reg_writer_seq[d_addr] then
-	    if dep and dep ~= sb_addr then 
-	       -- io.write("G "..line:sub(4).." ")
-	       add_depended(dep) 
-	       reg_input[d_addr] = 1
-	       reg_in_offset[reg_i] = offset_sb
-	       reg_io[#reg_io + 1] = {io='i', reg=reg_i, dep=dep}
-	       logd("G", sb_addr, reg_i, offset_sb, dep)
+
+	 elseif k == 'P ' then
+	    local addr = tonumber(line:sub(3))
+	    -- print("[D] line/addr:", line, addr)
+	    reg_writer[addr] = ins.addr
+
+	 elseif k == 'G ' then
+	    local addr = tonumber(line:sub(3))
+	    local dep_addr = reg_writer[addr]
+	    if dep_addr and dep_addr ~= ins.addr then
+	       ins.dep[#ins.dep + 1] = dep_addr
 	    end
-	    inst[#inst + 1] = {tag="G", addr=reg_i}
-	 -- elseif k == ' D' then
-	 --    add_depended(line:sub(4))
-	 elseif k == ' W' then
-	    weight_accu = weight_accu + tonumber(line:sub(4))
-	 end
-      end
+
+	 elseif line:sub(1,5) == 'ISSUE' then
+	    print(string.format("ISSUE %d", #issue.sb))
+	    for core, blk in ipairs(issue.sb) do
+	       local ins_inorder = {}
+	       for pc, ins in ipairs(blk.ins) do
+		  ins_inorder[pc] = ins
+	       end
+
+	       local ins_ooo = {}
+	       local q = List.new()
+	       for pc, ins in ipairs(blk.ins) do
+		  if #ins.mref > 0 then
+		     -- a memory access instruction, try to move it earlier
+		     mark_deps(sb, ins)
+		     copy_marked_deps(sb, ins_ooo)
+		  end
+	       end
+
+	       print(string.format("SB %x", sb.addr))
+	       for _, ins in ipairs(ins_ooo) do		  
+		  print(string.format("I %x", ins.addr))
+	       end
+	    end			-- loop over issue.sb
+
+	    issue.sb = {}
+	 end			-- 'ISSUE'
+      end			-- ~= '=='
    end
    -- TODO add a switch verbose or terse
    -- logd(i)
@@ -307,4 +373,4 @@ end				--  function parse_lackey_log()
 
 rob_w = core_num
 init_rob(rob, rob_d, rob_w)
-parse_lackey_log(sb_size, sb_merge)
+parse_input(sb_size, sb_merge)
