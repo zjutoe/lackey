@@ -310,6 +310,8 @@ function parse_input(sb_size, sb_merge)
 	    -- print('[D]line/addr', line, tonumber(addr), 16)
 	    sb = {}	    
 	    sb.addr = tonumber(addr, 16)
+	    sb.core = core
+	    sb.weight = weight
 	    sb.ins = {}
 	    sb.ins_hash = {}
 	    
@@ -395,9 +397,9 @@ function parse_input(sb_size, sb_merge)
 	       	  end
 	       end
 
-	       print(string.format("SB %x", sb.addr))
+	       print(string.format("SB %x %s %s", sb.addr, sb.core, sb.weight))
 	       for _, ins in ipairs(ins_ooo) do		  
-		  print(string.format("I %x", ins.addr))
+		  print(string.format("I %08x", ins.addr))
 		  for _, op in ipairs(ins.ops) do
 		     print(string.format("%s %s", op.flag, op.addr))
 		  end
