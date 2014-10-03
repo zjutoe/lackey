@@ -247,12 +247,23 @@ sb.addr = 0
 sb.ins = {}
 sb.ins_hash = {}
 
-local ins = {}
-ins.addr = 0
-ins.mref = {}
-ins.dep = {}
-ins.tag = 0			-- nil
+-- local ins = {}
+-- ins.addr = 0
+-- ins.mref = {}
+-- ins.dep = {}
+-- ins.tag = 0			-- nil
+-- ins.ops = {}
 
+function new_ins(addr)
+   local ins = {}
+   ins.mref = {}
+   ins.dep = {}
+   ins.addr = addr
+   ins.ops = {}
+   return ins
+end
+
+local ins = new_ins(0)
 
 -- recursively traverse all the dependees of ins, and mark them (if
 -- not previously marked yet)
@@ -311,10 +322,12 @@ function parse_input(sb_size, sb_merge)
 	    sb.ins[#sb.ins + 1] = ins
 	    sb.ins_hash[ins.addr] = ins
 
-	    ins = {}
-	    ins.mref = {}
-	    ins.dep = {}
-	    ins.addr = tonumber(addr, 16)
+	    -- ins = {}
+	    -- ins.mref = {}
+	    -- ins.dep = {}
+	    -- ins.addr = tonumber(addr, 16)
+	    -- ins.ops = {}
+	    ins = new_ins(tonumber(addr,16))
 
 	 elseif k == 'I ' then
 	    local addr = line:sub(3)
@@ -322,15 +335,18 @@ function parse_input(sb_size, sb_merge)
 	    sb.ins[#sb.ins + 1] = ins
 	    sb.ins_hash[ins.addr] = ins
 
-	    ins = {}
-	    ins.mref = {}
-	    ins.dep = {}
-	    ins.addr = tonumber(addr, 16)
+	    -- ins = {}
+	    -- ins.mref = {}
+	    -- ins.dep = {}
+	    -- ins.addr = tonumber(addr, 16)
+	    -- ins.ops = {}
+	    ins = new_ins(tonumber(addr,16))
 
 	 elseif k == 'S ' then
 	    local addr = tonumber(line:sub(3), 16)
 	    ins.mref[#ins.mref + 1] = {flag='S', addr=addr}
 	    mem_writer[addr] = ins.addr
+	    ins.ops[#ins.ops + 1] = {flag='S', addr=line:sub(3)}
 
 	 elseif k == 'L ' then
 	    local addr = tonumber(line:sub(3), 16)
@@ -339,11 +355,13 @@ function parse_input(sb_size, sb_merge)
 	    if dep_addr and dep_addr ~= ins.addr then
 	       ins.dep[#ins.dep + 1] = dep_addr
 	    end
+	    ins.ops[#ins.ops + 1] = {flag='L', addr=line:sub(3)}
 
 	 elseif k == 'P ' then
 	    local addr = tonumber(line:sub(3))
 	    -- print("[D] line/addr:", line, addr)
 	    reg_writer[addr] = ins.addr
+	    ins.ops[#ins.ops + 1] = {flag='P', addr=line:sub(3)}
 
 	 elseif k == 'G ' then
 	    local addr = tonumber(line:sub(3))
@@ -351,6 +369,7 @@ function parse_input(sb_size, sb_merge)
 	    if dep_addr and dep_addr ~= ins.addr then
 	       ins.dep[#ins.dep + 1] = dep_addr
 	    end
+	    ins.ops[#ins.ops + 1] = {flag='G', addr=line:sub(3)}
 
 	 elseif line:sub(1,5) == 'ISSUE' then
 	    print(string.format("ISSUE %d", #issue.sb))
@@ -370,15 +389,18 @@ function parse_input(sb_size, sb_merge)
 		  end
 	       end
 
-	       -- for _, ins in ipairs(blk.ins) do
-	       -- 	  if not ins.mark then
-	       -- 	     ins_ooo[#ins_ooo + 1] = ins
-	       -- 	  end
-	       -- end
+	       for _, ins in ipairs(blk.ins) do
+	       	  if not ins.mark then
+	       	     ins_ooo[#ins_ooo + 1] = ins
+	       	  end
+	       end
 
 	       print(string.format("SB %x", sb.addr))
 	       for _, ins in ipairs(ins_ooo) do		  
 		  print(string.format("I %x", ins.addr))
+		  for _, op in ipairs(ins.ops) do
+		     print(string.format("%s %s", op.flag, op.addr))
+		  end
 	       end
 	    end			-- loop over issue.sb
 
