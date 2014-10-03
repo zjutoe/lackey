@@ -294,8 +294,10 @@ function parse_input(sb_size, sb_merge)
 	 
 	 if k == 'SB' then
 	    issue.sb[#issue.sb + 1] = sb
+
 	    local addr, core, weight = string.match(line:sub(4), "(%x+) (%d) (%d)")
 	    -- print('[D]line/addr', line, tonumber(addr), 16)
+	    sb = {}	    
 	    sb.addr = tonumber(addr, 16)
 	    sb.ins = {}
 	    sb.ins_hash = {}
@@ -305,14 +307,25 @@ function parse_input(sb_size, sb_merge)
 	    mem_writer = {}
 	    reg_writer = {}
 
-	 elseif k == 'I ' then
+	    -- assume the SB also starts an ins
 	    sb.ins[#sb.ins + 1] = ins
 	    sb.ins_hash[ins.addr] = ins
 
 	    ins = {}
 	    ins.mref = {}
 	    ins.dep = {}
-	    ins.addr = tonumber(line:sub(3), 16)
+	    ins.addr = tonumber(addr, 16)
+
+	 elseif k == 'I ' then
+	    local addr = line:sub(3)
+
+	    sb.ins[#sb.ins + 1] = ins
+	    sb.ins_hash[ins.addr] = ins
+
+	    ins = {}
+	    ins.mref = {}
+	    ins.dep = {}
+	    ins.addr = tonumber(addr, 16)
 
 	 elseif k == 'S ' then
 	    local addr = tonumber(line:sub(3), 16)
@@ -356,6 +369,12 @@ function parse_input(sb_size, sb_merge)
 		     copy_marked_deps(sb, ins_ooo)
 		  end
 	       end
+
+	       -- for _, ins in ipairs(blk.ins) do
+	       -- 	  if not ins.mark then
+	       -- 	     ins_ooo[#ins_ooo + 1] = ins
+	       -- 	  end
+	       -- end
 
 	       print(string.format("SB %x", sb.addr))
 	       for _, ins in ipairs(ins_ooo) do		  

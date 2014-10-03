@@ -12,9 +12,9 @@ function logd(...)
 end
 
 -- the parameters that affects the parallelism 
-local core_num = 16
-local rob_w = 16
-local rob_d = 8
+local core_num = 4
+local rob_w = 4
+local rob_d = 4
 local sb_size = 50
 local sb_merge = false
 local quit_at = 300000
@@ -205,11 +205,14 @@ function end_sb()
    sb.reg_io = reg_io
 
    sbs[sb_addr] = sb
+
+   -- io.write("== ")
    -- io.write(sb_addr.."<=")
    -- for k, v in pairs(deps) do
    --    io.write(k.." ")
    -- end
    -- print(' M:'..dep_mem_cnt..' R:'..dep_reg_cnt)
+
    place_sb(rob, sb)
    issue_sb(rob)
 
