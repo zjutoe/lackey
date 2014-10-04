@@ -390,58 +390,58 @@ static void instrument_expr(IRSB* sb, IRExpr* expr, IRAtom* guard)
    // tl_assert(op < N_OPS);
    // tl_assert(typeIx < N_TYPES);
 
-   IRExpr *arg1, *arg2, *arg3, *arg4;
+   IRExpr *arg;
    IRTemp tmp1, tmp2, tmp3, tmp4;
    UInt op = 0;
    tmp1 = tmp2 = tmp3 = tmp4 = 0;
    switch (expr->tag) {
    case Iex_Unop:
 	   op = 1;
-	   arg1 = expr->Iex.Unop.arg;
-	   tmp1 = arg1->tag == Iex_RdTmp ? arg1->Iex.RdTmp.tmp : 0;
-	   VG_(umsg)("Unop arg1->tag=%d\n", arg1->tag);
+	   arg = expr->Iex.Unop.arg;
+	   tmp1 = arg->tag == Iex_RdTmp ? arg->Iex.RdTmp.tmp : arg->tag == Iex_Const ? arg->Iex.Const.con->tag : 0;
+	   VG_(umsg)("Unop arg->tag=%d\n", arg->tag);
 	   break;
    case Iex_Binop:
 	   op = 2;
-	   arg1 = expr->Iex.Binop.arg1;
-	   tmp1 = arg1->tag == Iex_RdTmp ? arg1->Iex.RdTmp.tmp : 0;
-	   arg2 = expr->Iex.Binop.arg2;
-	   tmp2 = arg2->tag == Iex_RdTmp ? arg2->Iex.RdTmp.tmp : 0;
-	   VG_(umsg)("Binop arg1->tag=%d  arg2->tag=%d\n", arg2->tag, arg2->tag);
+	   arg = expr->Iex.Binop.arg1;
+	   tmp1 = arg->tag == Iex_RdTmp ? arg->Iex.RdTmp.tmp : arg->tag == Iex_Const ? arg->Iex.Const.con->tag : 0; //arg->tag == Iex_RdTmp ? arg->Iex.RdTmp.tmp : 0;
+	   arg = expr->Iex.Binop.arg2;
+	   tmp2 = arg->tag == Iex_RdTmp ? arg->Iex.RdTmp.tmp : arg->tag == Iex_Const ? arg->Iex.Const.con->tag : 0; //arg->tag == Iex_RdTmp ? arg->Iex.RdTmp.tmp : 0;
+	   VG_(umsg)("Binop arg->tag=%d  arg->tag=%d\n", arg->tag, arg->tag);
 	   break;
    case Iex_Triop:
 	   op = 3;
-	   arg1 = expr->Iex.Triop.details->arg1;
-	   tmp1 = arg1->tag == Iex_RdTmp ? arg1->Iex.RdTmp.tmp : 0;
-	   arg2 = expr->Iex.Triop.details->arg2;
-	   tmp2 = arg2->tag == Iex_RdTmp ? arg2->Iex.RdTmp.tmp : 0;
-	   arg3 = expr->Iex.Triop.details->arg3;
-	   tmp3 = arg3->tag == Iex_RdTmp ? arg3->Iex.RdTmp.tmp : 0;
-	   VG_(umsg)("Triop arg1->tag=%d  arg2->tag=%d arg3->tag=%d\n", 
-		     arg2->tag, arg2->tag, arg3->tag);
+	   arg = expr->Iex.Triop.details->arg1;
+	   tmp1 = arg->tag == Iex_RdTmp ? arg->Iex.RdTmp.tmp : arg->tag == Iex_Const ? arg->Iex.Const.con->tag : 0; //arg->tag == Iex_RdTmp ? arg->Iex.RdTmp.tmp : 0;
+	   arg = expr->Iex.Triop.details->arg2;
+	   tmp2 = arg->tag == Iex_RdTmp ? arg->Iex.RdTmp.tmp : arg->tag == Iex_Const ? arg->Iex.Const.con->tag : 0; //arg->tag == Iex_RdTmp ? arg->Iex.RdTmp.tmp : 0;
+	   arg = expr->Iex.Triop.details->arg3;
+	   tmp3 = arg->tag == Iex_RdTmp ? arg->Iex.RdTmp.tmp : arg->tag == Iex_Const ? arg->Iex.Const.con->tag : 0; //arg->tag == Iex_RdTmp ? arg->Iex.RdTmp.tmp : 0;
+	   VG_(umsg)("Triop arg->tag=%d  arg->tag=%d arg->tag=%d\n", 
+		     arg->tag, arg->tag, arg->tag);
 	   break;
    case Iex_Qop:
 	   op = 4;
-	   arg1 = expr->Iex.Qop.details->arg1;
-	   tmp1 = arg1->tag == Iex_RdTmp ? arg1->Iex.RdTmp.tmp : 0;
-	   arg2 = expr->Iex.Qop.details->arg2;
-	   tmp2 = arg2->tag == Iex_RdTmp ? arg2->Iex.RdTmp.tmp : 0;
-	   arg3 = expr->Iex.Qop.details->arg3;
-	   tmp3 = arg3->tag == Iex_RdTmp ? arg3->Iex.RdTmp.tmp : 0;
-	   arg4 = expr->Iex.Qop.details->arg4;
-	   tmp4 = arg4->tag == Iex_RdTmp ? arg4->Iex.RdTmp.tmp : 0;
-	   VG_(umsg)("Qop arg1->tag=%d  arg2->tag=%d arg3->tag=%d arg4->tag=%d\n", 
-		     arg2->tag, arg2->tag, arg3->tag, arg4->tag);
+	   arg = expr->Iex.Qop.details->arg1;
+	   tmp1 = arg->tag == Iex_RdTmp ? arg->Iex.RdTmp.tmp : arg->tag == Iex_Const ? arg->Iex.Const.con->tag : 0; //arg->tag == Iex_RdTmp ? arg->Iex.RdTmp.tmp : 0;
+	   arg = expr->Iex.Qop.details->arg2;
+	   tmp2 = arg->tag == Iex_RdTmp ? arg->Iex.RdTmp.tmp : arg->tag == Iex_Const ? arg->Iex.Const.con->tag : 0; //arg->tag == Iex_RdTmp ? arg->Iex.RdTmp.tmp : 0;
+	   arg = expr->Iex.Qop.details->arg3;
+	   tmp3 = arg->tag == Iex_RdTmp ? arg->Iex.RdTmp.tmp : arg->tag == Iex_Const ? arg->Iex.Const.con->tag : 0; //arg->tag == Iex_RdTmp ? arg->Iex.RdTmp.tmp : 0;
+	   arg = expr->Iex.Qop.details->arg4;
+	   tmp4 = arg->tag == Iex_RdTmp ? arg->Iex.RdTmp.tmp : arg->tag == Iex_Const ? arg->Iex.Const.con->tag : 0; //arg->tag == Iex_RdTmp ? arg->Iex.RdTmp.tmp : 0;
+	   VG_(umsg)("Qop arg->tag=%d  arg->tag=%d arg->tag=%d arg->tag=%d\n", 
+		     arg->tag, arg->tag, arg->tag, arg->tag);
 	   break;
    case Iex_ITE:
 	   VG_(umsg)("ITE\n");
 	   op = 3;
-	   arg1 = expr->Iex.ITE.cond;
-	   tmp1 = arg1->tag == Iex_RdTmp ? arg1->Iex.RdTmp.tmp : 0;
-	   arg2 = expr->Iex.ITE.iftrue;
-	   tmp2 = arg2->tag == Iex_RdTmp ? arg2->Iex.RdTmp.tmp : 0;
-	   arg3 = expr->Iex.ITE.iffalse;
-	   tmp3 = arg3->tag == Iex_RdTmp ? arg3->Iex.RdTmp.tmp : 0;
+	   arg = expr->Iex.ITE.cond;
+	   tmp1 = arg->tag == Iex_RdTmp ? arg->Iex.RdTmp.tmp : arg->tag == Iex_Const ? arg->Iex.Const.con->tag : 0; //arg->tag == Iex_RdTmp ? arg->Iex.RdTmp.tmp : 0;
+	   arg = expr->Iex.ITE.iftrue;
+	   tmp2 = arg->tag == Iex_RdTmp ? arg->Iex.RdTmp.tmp : arg->tag == Iex_Const ? arg->Iex.Const.con->tag : 0; //arg->tag == Iex_RdTmp ? arg->Iex.RdTmp.tmp : 0;
+	   arg = expr->Iex.ITE.iffalse;
+	   tmp3 = arg->tag == Iex_RdTmp ? arg->Iex.RdTmp.tmp : arg->tag == Iex_Const ? arg->Iex.Const.con->tag : 0; //arg->tag == Iex_RdTmp ? arg->Iex.RdTmp.tmp : 0;
 	   break;
    default:
 	   break;
