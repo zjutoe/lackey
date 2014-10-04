@@ -377,6 +377,27 @@ static void instrument_detail(IRSB* sb, Op op, IRType type, IRAtom* guard)
    addStmtToIRSB( sb, IRStmt_Dirty(di) );
 }
 
+static VG_REGPARM(1) void trace_expr(Op op);
+/* A helper that adds the instrumentation for a detail.  guard ::
+   Ity_I1 is the guarding condition for the event.  If NULL it is
+   assumed to mean "always True". */
+static void instrument_expr(IRSB* sb, Op op, IRType type, IRAtom* guard)
+{
+   IRDirty* di;
+   IRExpr** argv;
+   const UInt typeIx = type2index(type);
+
+   tl_assert(op < N_OPS);
+   tl_assert(typeIx < N_TYPES);
+
+   argv = mkIRExprVec_1( mkIRExpr_HWord(op) );
+   di = unsafeIRDirty_0_N( 1, "trace_expr",
+                              VG_(fnptr_to_fnentry)( &trace_expr ), 
+                              argv);
+   if (guard) di->guard = guard;
+   addStmtToIRSB( sb, IRStmt_Dirty(di) );
+}
+
 /* Summarize and print the details. */
 static void print_details ( void )
 {
@@ -453,6 +474,11 @@ static Int   events_used = 0;
 static VG_REGPARM(2) void trace_instr(Addr addr, SizeT size)
 {
    VG_(printf)("I  %08lx,%lu\n", addr, size);
+}
+
+static VG_REGPARM(1) void trace_expr(Op op)
+{
+   VG_(printf)("OP%d\n", op);
 }
 
 static VG_REGPARM(2) void trace_load(Addr addr, SizeT size)
@@ -822,7 +848,8 @@ IRSB* lk_instrument ( VgCallbackClosure* closure,
                   case Iex_Triop:
                   case Iex_Qop:
                   case Iex_ITE:
-                     instrument_detail( sbOut, OpAlu, type, NULL/*guard*/ );
+		     instrument_detail( sbOut, OpAlu, type, NULL/*guard*/ );
+		     instrument_expr( sbOut, OpAlu, type, NULL/*guard*/ );
                      break;
                   default:
                      break;
