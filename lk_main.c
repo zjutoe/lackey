@@ -377,7 +377,7 @@ static void instrument_detail(IRSB* sb, Op op, IRType type, IRAtom* guard)
    addStmtToIRSB( sb, IRStmt_Dirty(di) );
 }
 
-static VG_REGPARM(3) void trace_expr(UInt op, IRTemp tmp1, IRTemp tmp2);
+static VG_REGPARM(3) void trace_expr(UInt op, IRTemp tmp1, IRTemp tmp2, IRTemp tmp3, IRTemp tmp4);
 /* A helper that adds the instrumentation for a detail.  guard ::
    Ity_I1 is the guarding condition for the event.  If NULL it is
    assumed to mean "always True". */
@@ -447,12 +447,14 @@ static void instrument_expr(IRSB* sb, IRExpr* expr, IRAtom* guard)
 	   break;
    }
 
-   argv = mkIRExprVec_3( mkIRExpr_HWord(op),
+   argv = mkIRExprVec_5( mkIRExpr_HWord(op),
 			 mkIRExpr_HWord(tmp1),
-			 mkIRExpr_HWord(tmp2));
+			 mkIRExpr_HWord(tmp2),
+			 mkIRExpr_HWord(tmp3),
+			 mkIRExpr_HWord(tmp4) );
    di = unsafeIRDirty_0_N( 3, "trace_expr",
-                              VG_(fnptr_to_fnentry)( &trace_expr ), 
-                              argv);
+			   VG_(fnptr_to_fnentry)( &trace_expr ), 
+			   argv );
    if (guard) di->guard = guard;
    addStmtToIRSB( sb, IRStmt_Dirty(di) );
 }
@@ -535,9 +537,10 @@ static VG_REGPARM(2) void trace_instr(Addr addr, SizeT size)
    VG_(printf)("I  %08lx,%lu\n", addr, size);
 }
 
-static VG_REGPARM(3) void trace_expr(UInt op, IRTemp tmp1, IRTemp tmp2)
+static VG_REGPARM(3) void trace_expr(UInt op, IRTemp tmp1, IRTemp tmp2, IRTemp tmp3, IRTemp tmp4)
+
 {
-   VG_(printf)("OP%d %d %d %d %d\n", op, tmp1, tmp2);
+	VG_(printf)("OP%d %d %d %d %d\n", op, tmp1, tmp2, tmp3, tmp4);
 }
 
 static VG_REGPARM(2) void trace_load(Addr addr, SizeT size)
