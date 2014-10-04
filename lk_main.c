@@ -377,21 +377,80 @@ static void instrument_detail(IRSB* sb, Op op, IRType type, IRAtom* guard)
    addStmtToIRSB( sb, IRStmt_Dirty(di) );
 }
 
-static VG_REGPARM(1) void trace_expr(Op op);
+static VG_REGPARM(3) void trace_expr(UInt op, IRTemp tmp1, IRTemp tmp2);
 /* A helper that adds the instrumentation for a detail.  guard ::
    Ity_I1 is the guarding condition for the event.  If NULL it is
    assumed to mean "always True". */
-static void instrument_expr(IRSB* sb, Op op, IRType type, IRAtom* guard)
+static void instrument_expr(IRSB* sb, IRExpr* expr, IRAtom* guard)
 {
    IRDirty* di;
    IRExpr** argv;
-   const UInt typeIx = type2index(type);
+   // const UInt typeIx = type2index(type);
 
-   tl_assert(op < N_OPS);
-   tl_assert(typeIx < N_TYPES);
+   // tl_assert(op < N_OPS);
+   // tl_assert(typeIx < N_TYPES);
 
-   argv = mkIRExprVec_1( mkIRExpr_HWord(op) );
-   di = unsafeIRDirty_0_N( 1, "trace_expr",
+   IRExpr *arg1, *arg2, *arg3, *arg4;
+   IRTemp tmp1, tmp2, tmp3, tmp4;
+   UInt op = 0;
+   tmp1 = tmp2 = tmp3 = tmp4 = 0;
+   switch (expr->tag) {
+   case Iex_Unop:
+	   op = 1;
+	   arg1 = expr->Iex.Unop.arg;
+	   tmp1 = arg1->tag == Iex_RdTmp ? arg1->Iex.RdTmp.tmp : 0;
+	   VG_(umsg)("Unop arg1->tag=%d\n", arg1->tag);
+	   break;
+   case Iex_Binop:
+	   op = 2;
+	   arg1 = expr->Iex.Binop.arg1;
+	   tmp1 = arg1->tag == Iex_RdTmp ? arg1->Iex.RdTmp.tmp : 0;
+	   arg2 = expr->Iex.Binop.arg2;
+	   tmp2 = arg2->tag == Iex_RdTmp ? arg2->Iex.RdTmp.tmp : 0;
+	   VG_(umsg)("Binop arg1->tag=%d  arg2->tag=%d\n", arg2->tag, arg2->tag);
+	   break;
+   case Iex_Triop:
+	   op = 3;
+	   arg1 = expr->Iex.Triop.details->arg1;
+	   tmp1 = arg1->tag == Iex_RdTmp ? arg1->Iex.RdTmp.tmp : 0;
+	   arg2 = expr->Iex.Triop.details->arg2;
+	   tmp2 = arg2->tag == Iex_RdTmp ? arg2->Iex.RdTmp.tmp : 0;
+	   arg3 = expr->Iex.Triop.details->arg3;
+	   tmp3 = arg3->tag == Iex_RdTmp ? arg3->Iex.RdTmp.tmp : 0;
+	   VG_(umsg)("Triop arg1->tag=%d  arg2->tag=%d arg3->tag=%d\n", 
+		     arg2->tag, arg2->tag, arg3->tag);
+	   break;
+   case Iex_Qop:
+	   op = 4;
+	   arg1 = expr->Iex.Qop.details->arg1;
+	   tmp1 = arg1->tag == Iex_RdTmp ? arg1->Iex.RdTmp.tmp : 0;
+	   arg2 = expr->Iex.Qop.details->arg2;
+	   tmp2 = arg2->tag == Iex_RdTmp ? arg2->Iex.RdTmp.tmp : 0;
+	   arg3 = expr->Iex.Qop.details->arg3;
+	   tmp3 = arg3->tag == Iex_RdTmp ? arg3->Iex.RdTmp.tmp : 0;
+	   arg4 = expr->Iex.Qop.details->arg4;
+	   tmp4 = arg4->tag == Iex_RdTmp ? arg4->Iex.RdTmp.tmp : 0;
+	   VG_(umsg)("Qop arg1->tag=%d  arg2->tag=%d arg3->tag=%d arg4->tag=%d\n", 
+		     arg2->tag, arg2->tag, arg3->tag, arg4->tag);
+	   break;
+   case Iex_ITE:
+	   VG_(umsg)("ITE\n");
+	   op = 3;
+	   arg1 = expr->Iex.ITE.cond;
+	   tmp1 = arg1->tag == Iex_RdTmp ? arg1->Iex.RdTmp.tmp : 0;
+	   arg2 = expr->Iex.ITE.iftrue;
+	   tmp2 = arg2->tag == Iex_RdTmp ? arg2->Iex.RdTmp.tmp : 0;
+	   arg3 = expr->Iex.ITE.iffalse;
+	   tmp3 = arg3->tag == Iex_RdTmp ? arg3->Iex.RdTmp.tmp : 0;
+	   break;
+   default:
+	   break;
+   }
+
+   argv = mkIRExprVec_3( mkIRExpr_HWord(op),
+			 mkIRExpr_HWord(tmp1),
+			 mkIRExpr_HWord(tmp2));
+   di = unsafeIRDirty_0_N( 3, "trace_expr",
                               VG_(fnptr_to_fnentry)( &trace_expr ), 
                               argv);
    if (guard) di->guard = guard;
@@ -476,9 +535,9 @@ static VG_REGPARM(2) void trace_instr(Addr addr, SizeT size)
    VG_(printf)("I  %08lx,%lu\n", addr, size);
 }
 
-static VG_REGPARM(1) void trace_expr(Op op)
+static VG_REGPARM(3) void trace_expr(UInt op, IRTemp tmp1, IRTemp tmp2)
 {
-   VG_(printf)("OP%d\n", op);
+   VG_(printf)("OP%d %d %d %d %d\n", op, tmp1, tmp2);
 }
 
 static VG_REGPARM(2) void trace_load(Addr addr, SizeT size)
@@ -849,7 +908,7 @@ IRSB* lk_instrument ( VgCallbackClosure* closure,
                   case Iex_Qop:
                   case Iex_ITE:
 		     instrument_detail( sbOut, OpAlu, type, NULL/*guard*/ );
-		     instrument_expr( sbOut, OpAlu, type, NULL/*guard*/ );
+		     instrument_expr( sbOut, expr, NULL );
                      break;
                   default:
                      break;
