@@ -377,11 +377,24 @@ static void instrument_detail(IRSB* sb, Op op, IRType type, IRAtom* guard)
    addStmtToIRSB( sb, IRStmt_Dirty(di) );
 }
 
-static VG_REGPARM(3) void trace_expr(UInt op, IRTemp tmp1, IRTemp tmp2, IRTemp tmp3, IRTemp tmp4);
+#define EXPR_TMP(op, t, arg)				\
+	do {						\
+		switch(arg->tag) {			\
+		case Iex_RdTmp:				\
+			t = arg->Iex.RdTmp.tmp;		\
+			break;				\
+		case Iex_Const:				\
+			t = arg->Iex.Const.con->tag;	\
+			op--;				\
+			break;				\
+		}					\
+        } while(0)
+
+static VG_REGPARM(3) void trace_expr(UInt op, IRTemp lhs, IRTemp tmp1, IRTemp tmp2, IRTemp tmp3, IRTemp tmp4);
 /* A helper that adds the instrumentation for a detail.  guard ::
    Ity_I1 is the guarding condition for the event.  If NULL it is
    assumed to mean "always True". */
-static void instrument_expr(IRSB* sb, IRExpr* expr, IRAtom* guard)
+static void instrument_expr(IRSB* sb, IRTemp lhs, IRExpr* expr, IRAtom* guard)
 {
    IRDirty* di;
    IRExpr** argv;
@@ -390,64 +403,67 @@ static void instrument_expr(IRSB* sb, IRExpr* expr, IRAtom* guard)
    // tl_assert(op < N_OPS);
    // tl_assert(typeIx < N_TYPES);
 
-   IRExpr *arg;
+   IRExpr *arg1, *arg2, *arg3, *arg4;
    IRTemp tmp1, tmp2, tmp3, tmp4;
    UInt op = 0;
    tmp1 = tmp2 = tmp3 = tmp4 = 0;
    switch (expr->tag) {
    case Iex_Unop:
 	   op = 1;
-	   arg = expr->Iex.Unop.arg;
-	   tmp1 = arg->tag == Iex_RdTmp ? arg->Iex.RdTmp.tmp : arg->tag == Iex_Const ? arg->Iex.Const.con->tag : 0;
-	   VG_(umsg)("Unop arg->tag=%d\n", arg->tag);
+	   arg1 = expr->Iex.Unop.arg;
+	   EXPR_TMP(op, tmp1, arg1);
+	   VG_(umsg)("Unop op=%d arg->tag=%d\n", op, arg1->tag);
 	   break;
    case Iex_Binop:
 	   op = 2;
-	   arg = expr->Iex.Binop.arg1;
-	   tmp1 = arg->tag == Iex_RdTmp ? arg->Iex.RdTmp.tmp : arg->tag == Iex_Const ? arg->Iex.Const.con->tag : 0; //arg->tag == Iex_RdTmp ? arg->Iex.RdTmp.tmp : 0;
-	   arg = expr->Iex.Binop.arg2;
-	   tmp2 = arg->tag == Iex_RdTmp ? arg->Iex.RdTmp.tmp : arg->tag == Iex_Const ? arg->Iex.Const.con->tag : 0; //arg->tag == Iex_RdTmp ? arg->Iex.RdTmp.tmp : 0;
-	   VG_(umsg)("Binop arg->tag=%d  arg->tag=%d\n", arg->tag, arg->tag);
+	   arg1 = expr->Iex.Binop.arg1;
+	   EXPR_TMP(op, tmp1, arg1);
+	   arg2 = expr->Iex.Binop.arg2;
+	   EXPR_TMP(op, tmp2, arg2);
+	   VG_(umsg)("Binop op=%d, arg1->tag=%d arg2->tag=%d\n", 
+		     op, arg1->tag, arg2->tag);
 	   break;
    case Iex_Triop:
 	   op = 3;
-	   arg = expr->Iex.Triop.details->arg1;
-	   tmp1 = arg->tag == Iex_RdTmp ? arg->Iex.RdTmp.tmp : arg->tag == Iex_Const ? arg->Iex.Const.con->tag : 0; //arg->tag == Iex_RdTmp ? arg->Iex.RdTmp.tmp : 0;
-	   arg = expr->Iex.Triop.details->arg2;
-	   tmp2 = arg->tag == Iex_RdTmp ? arg->Iex.RdTmp.tmp : arg->tag == Iex_Const ? arg->Iex.Const.con->tag : 0; //arg->tag == Iex_RdTmp ? arg->Iex.RdTmp.tmp : 0;
-	   arg = expr->Iex.Triop.details->arg3;
-	   tmp3 = arg->tag == Iex_RdTmp ? arg->Iex.RdTmp.tmp : arg->tag == Iex_Const ? arg->Iex.Const.con->tag : 0; //arg->tag == Iex_RdTmp ? arg->Iex.RdTmp.tmp : 0;
-	   VG_(umsg)("Triop arg->tag=%d  arg->tag=%d arg->tag=%d\n", 
-		     arg->tag, arg->tag, arg->tag);
+	   arg1 = expr->Iex.Triop.details->arg1;
+	   EXPR_TMP(op, tmp1, arg1);
+	   arg2 = expr->Iex.Triop.details->arg2;
+	   EXPR_TMP(op, tmp2, arg2);
+	   arg3 = expr->Iex.Triop.details->arg3;
+	   EXPR_TMP(op, tmp3, arg3);
+	   VG_(umsg)("Triop op=%d arg1->tag=%d  arg2->tag=%d arg3->tag=%d\n", 
+		     op, arg1->tag, arg2->tag, arg3->tag);
 	   break;
    case Iex_Qop:
 	   op = 4;
-	   arg = expr->Iex.Qop.details->arg1;
-	   tmp1 = arg->tag == Iex_RdTmp ? arg->Iex.RdTmp.tmp : arg->tag == Iex_Const ? arg->Iex.Const.con->tag : 0; //arg->tag == Iex_RdTmp ? arg->Iex.RdTmp.tmp : 0;
-	   arg = expr->Iex.Qop.details->arg2;
-	   tmp2 = arg->tag == Iex_RdTmp ? arg->Iex.RdTmp.tmp : arg->tag == Iex_Const ? arg->Iex.Const.con->tag : 0; //arg->tag == Iex_RdTmp ? arg->Iex.RdTmp.tmp : 0;
-	   arg = expr->Iex.Qop.details->arg3;
-	   tmp3 = arg->tag == Iex_RdTmp ? arg->Iex.RdTmp.tmp : arg->tag == Iex_Const ? arg->Iex.Const.con->tag : 0; //arg->tag == Iex_RdTmp ? arg->Iex.RdTmp.tmp : 0;
-	   arg = expr->Iex.Qop.details->arg4;
-	   tmp4 = arg->tag == Iex_RdTmp ? arg->Iex.RdTmp.tmp : arg->tag == Iex_Const ? arg->Iex.Const.con->tag : 0; //arg->tag == Iex_RdTmp ? arg->Iex.RdTmp.tmp : 0;
-	   VG_(umsg)("Qop arg->tag=%d  arg->tag=%d arg->tag=%d arg->tag=%d\n", 
-		     arg->tag, arg->tag, arg->tag, arg->tag);
+	   arg1 = expr->Iex.Qop.details->arg1;
+	   EXPR_TMP(op, tmp1, arg1);
+	   arg2 = expr->Iex.Qop.details->arg2;
+	   EXPR_TMP(op, tmp2, arg2);
+	   arg3 = expr->Iex.Qop.details->arg3;
+	   EXPR_TMP(op, tmp3, arg3);
+	   arg4 = expr->Iex.Qop.details->arg4;
+	   EXPR_TMP(op, tmp4, arg4);
+	   VG_(umsg)("Qop op=%d arg1->tag=%d arg2->tag=%d arg3->tag=%d arg4->tag=%d\n", 
+		     op, arg1->tag, arg2->tag, arg3->tag, arg4->tag);
 	   break;
    case Iex_ITE:
-	   VG_(umsg)("ITE\n");
 	   op = 3;
-	   arg = expr->Iex.ITE.cond;
-	   tmp1 = arg->tag == Iex_RdTmp ? arg->Iex.RdTmp.tmp : arg->tag == Iex_Const ? arg->Iex.Const.con->tag : 0; //arg->tag == Iex_RdTmp ? arg->Iex.RdTmp.tmp : 0;
-	   arg = expr->Iex.ITE.iftrue;
-	   tmp2 = arg->tag == Iex_RdTmp ? arg->Iex.RdTmp.tmp : arg->tag == Iex_Const ? arg->Iex.Const.con->tag : 0; //arg->tag == Iex_RdTmp ? arg->Iex.RdTmp.tmp : 0;
-	   arg = expr->Iex.ITE.iffalse;
-	   tmp3 = arg->tag == Iex_RdTmp ? arg->Iex.RdTmp.tmp : arg->tag == Iex_Const ? arg->Iex.Const.con->tag : 0; //arg->tag == Iex_RdTmp ? arg->Iex.RdTmp.tmp : 0;
+	   arg1 = expr->Iex.ITE.cond;
+	   EXPR_TMP(op, tmp1, arg1);
+	   arg2 = expr->Iex.ITE.iftrue;
+	   EXPR_TMP(op, tmp2, arg2);
+	   arg3 = expr->Iex.ITE.iffalse;
+	   EXPR_TMP(op, tmp3, arg3);
+	   VG_(umsg)("ITE op=%d arg1->tag=%d  arg2->tag=%d arg3->tag=%d\n", 
+		     op, arg1->tag, arg2->tag, arg3->tag);
 	   break;
    default:
 	   break;
    }
 
-   argv = mkIRExprVec_5( mkIRExpr_HWord(op),
+   argv = mkIRExprVec_6( mkIRExpr_HWord(op),
+			 mkIRExpr_HWord(lhs),
 			 mkIRExpr_HWord(tmp1),
 			 mkIRExpr_HWord(tmp2),
 			 mkIRExpr_HWord(tmp3),
@@ -537,10 +553,19 @@ static VG_REGPARM(2) void trace_instr(Addr addr, SizeT size)
    VG_(printf)("I  %08lx,%lu\n", addr, size);
 }
 
-static VG_REGPARM(3) void trace_expr(UInt op, IRTemp tmp1, IRTemp tmp2, IRTemp tmp3, IRTemp tmp4)
+static VG_REGPARM(3) void trace_expr(UInt op, IRTemp lhs, IRTemp tmp1, IRTemp tmp2, IRTemp tmp3, IRTemp tmp4)
 
 {
-	VG_(printf)("OP%d %d %d %d %d\n", op, tmp1, tmp2, tmp3, tmp4);
+	VG_(printf)("OP%d %d = ", op, lhs);
+	switch (op) {
+	case 4: VG_(printf)("%d ", tmp4);
+	case 3: VG_(printf)("%d ", tmp3);
+	case 2: VG_(printf)("%d ", tmp2);
+	case 1: VG_(printf)("%d ", tmp1);
+	default:
+		break;
+	}
+	VG_(printf)("\n");
 }
 
 static VG_REGPARM(2) void trace_load(Addr addr, SizeT size)
@@ -911,7 +936,7 @@ IRSB* lk_instrument ( VgCallbackClosure* closure,
                   case Iex_Qop:
                   case Iex_ITE:
 		     instrument_detail( sbOut, OpAlu, type, NULL/*guard*/ );
-		     instrument_expr( sbOut, expr, NULL );
+		     instrument_expr( sbOut, st->Ist.WrTmp.tmp, expr, NULL );
                      break;
                   default:
                      break;
