@@ -377,17 +377,19 @@ static void instrument_detail(IRSB* sb, Op op, IRType type, IRAtom* guard)
    addStmtToIRSB( sb, IRStmt_Dirty(di) );
 }
 
-#define EXPR_TMP(op, t, arg)				\
-	do {						\
-		switch(arg->tag) {			\
-		case Iex_RdTmp:				\
-			t = arg->Iex.RdTmp.tmp;		\
-			break;				\
-		case Iex_Const:				\
-			t = arg->Iex.Const.con->tag;	\
-			op--;				\
-			break;				\
-		}					\
+#define EXPR_TMP(op, t, arg)						\
+	do {								\
+		switch(arg->tag) {					\
+		case Iex_RdTmp:						\
+			t = arg->Iex.RdTmp.tmp;				\
+			break;						\
+		case Iex_Const:						\
+			t = arg->Iex.Const.con->tag;			\
+			op--;						\
+			break;						\
+                default: VG_(printf)("non-flat expr: tag=%d\n", arg->tag); \
+			break;						\
+		}							\
         } while(0)
 
 static VG_REGPARM(3) void trace_expr(UInt op, IRTemp lhs, IRTemp tmp1, IRTemp tmp2, IRTemp tmp3, IRTemp tmp4);
@@ -736,12 +738,14 @@ void addEvent_Dw ( IRSB* sb, IRAtom* daddr, Int dsize )
 
 static void trace_put(Int offset)
 {
-	VG_(printf)(" P %d %d\n", offset, n_guest_instrs_sb);
+	//VG_(printf)(" P %d %d\n", offset, n_guest_instrs_sb);
+	VG_(printf)(" P %d\n", offset);
 }
 
 static void trace_get(Int offset)
 {
-	VG_(printf)(" G %d %d\n", offset, n_guest_instrs_sb);
+	//VG_(printf)(" G %d %d\n", offset, n_guest_instrs_sb);
+	VG_(printf)(" G %d\n", offset);
 }
 
 
