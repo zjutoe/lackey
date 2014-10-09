@@ -559,12 +559,12 @@ static VG_REGPARM(2) void trace_instr(Addr addr, SizeT size)
 static VG_REGPARM(3) void trace_expr(UInt op, IRTemp lhs, IRTemp tmp1, IRTemp tmp2, IRTemp tmp3, IRTemp tmp4)
 
 {
-	VG_(printf)("OP%d %d = ", op, lhs);
+	VG_(printf)("OP%d T%d = ", op, lhs);
 	switch (op) {
-	case 4: VG_(printf)("%d ", tmp4);
-	case 3: VG_(printf)("%d ", tmp3);
-	case 2: VG_(printf)("%d ", tmp2);
-	case 1: VG_(printf)("%d ", tmp1);
+	case 4: VG_(printf)("T%d ", tmp4);
+	case 3: VG_(printf)("T%d ", tmp3);
+	case 2: VG_(printf)("T%d ", tmp2);
+	case 1: VG_(printf)("T%d ", tmp1);
 	default:
 		break;
 	}
