@@ -511,7 +511,6 @@ typedef
       IRAtom*    addr;
       Int        size;
       IRAtom*    guard; /* :: Ity_I1, or NULL=="always True" */
-      Int dw_const;
    }
    Event;
 
@@ -577,9 +576,12 @@ static VG_REGPARM(3) void trace_load(Addr addr, SizeT size, IRTemp tmp)
 	VG_(printf)("L T%d M%08lx,%lu\n", tmp, addr, size);
 }
 
-static VG_REGPARM(2) void trace_store(Addr addr, SizeT size)
+static VG_REGPARM(3) void trace_store(Addr addr, SizeT size, IRTemp tmp)
 {
-   VG_(printf)(" S %08lx,%lu\n", addr, size);
+	if (tmp == IRTemp_CONST || tmp == IRTemp_INVALID)
+		VG_(printf)("S M%08lx,%lu\n", addr, size);
+	else
+		VG_(printf)("S T%d M%08lx,%lu\n", tmp, addr, size);
 }
 
 static VG_REGPARM(2) void trace_modify(Addr addr, SizeT size)
@@ -684,7 +686,7 @@ void addEvent_Dr ( IRSB* sb, IRTemp tmp, IRAtom* daddr, Int dsize )
 
 /* Add a guarded write event. */
 static
-void addEvent_Dw_guarded ( IRSB* sb, IRAtom* daddr, Int dsize, IRAtom* guard )
+void addEvent_Dw_guarded ( IRSB* sb, IRTemp tmp, IRAtom* daddr, Int dsize, IRAtom* guard )
 {
    Event* evt;
    tl_assert(clo_trace_mem);
@@ -698,6 +700,7 @@ void addEvent_Dw_guarded ( IRSB* sb, IRAtom* daddr, Int dsize, IRAtom* guard )
    evt->addr  = daddr;
    evt->size  = dsize;
    evt->guard = guard;
+   evt->tmp   = tmp;
    events_used++;
 }
 
@@ -705,7 +708,7 @@ void addEvent_Dw_guarded ( IRSB* sb, IRAtom* daddr, Int dsize, IRAtom* guard )
    preceding ordinary read event of the same size to the same
    address. */
 static
-void addEvent_Dw ( IRSB* sb, IRAtom* daddr, Int dsize, Int dw_const )
+void addEvent_Dw ( IRSB* sb, IRTemp tmp, IRAtom* daddr, Int dsize )
 {
    Event* lastEvt;
    Event* evt;
@@ -734,7 +737,7 @@ void addEvent_Dw ( IRSB* sb, IRAtom* daddr, Int dsize, Int dw_const )
    evt->size  = dsize;
    evt->addr  = daddr;
    evt->guard = NULL;
-   evt->dw_const = dw_const;
+   evt->tmp = tmp;
    events_used++;
 }
 
@@ -753,7 +756,7 @@ static VG_REGPARM(3) void trace_put(Int n_op, Int offset, IRTemp tmp)
 static VG_REGPARM(2) void trace_get(Int offset, IRTemp tmp)
 {
 	//VG_(printf)(" G %d %d\n", offset, n_guest_instrs_sb);
-	VG_(printf)("G G%d T%d\n", offset, tmp);
+	VG_(printf)("G T%d G%d\n", tmp, offset);
 }
 
 
@@ -990,13 +993,8 @@ IRSB* lk_instrument ( VgCallbackClosure* closure,
             tl_assert(type != Ity_INVALID);
 	    IRTemp tmp;
             if (clo_trace_mem) {
-		    if ( data->tag == Iex_Const ) {
-			    // tmp = data->Iex.Const.con.
-			    
-		    } else if (data->tag == Iex_RdTmp) {
-			    VG_(umsg)("S: data->tag==Iex_RdTmp\n");
-		    }
-		    addEvent_Dw( sbOut, st->Ist.Store.addr,
+		    tmp = lk_temp_of_expr(data);
+		    addEvent_Dw( sbOut, tmp, st->Ist.Store.addr,
 				 sizeofIRType(type) );
             }
             if (clo_detailed_counts) {
@@ -1012,9 +1010,11 @@ IRSB* lk_instrument ( VgCallbackClosure* closure,
             IRExpr*   data = sg->data;
             IRType    type = typeOfIRExpr(tyenv, data);
             tl_assert(type != Ity_INVALID);
+	    IRTemp tmp;
             if (clo_trace_mem) {
-               addEvent_Dw_guarded( sbOut, sg->addr,
-                                    sizeofIRType(type), sg->guard );
+		    tmp = lk_temp_of_expr(data);
+		    addEvent_Dw_guarded( sbOut, tmp, sg->addr,
+					 sizeofIRType(type), sg->guard );
             }
             if (clo_detailed_counts) {
                instrument_detail( sbOut, OpStore, type, sg->guard );
@@ -1052,7 +1052,8 @@ IRSB* lk_instrument ( VgCallbackClosure* closure,
                   if (d->mFx == Ifx_Read || d->mFx == Ifx_Modify)
 			  addEvent_Dr( sbOut, d->tmp, d->mAddr, dsize );
                   if (d->mFx == Ifx_Write || d->mFx == Ifx_Modify)
-                     addEvent_Dw( sbOut, d->mAddr, dsize );
+			  //FIXME: IRTemp_CONST is not true
+			  addEvent_Dw( sbOut, IRTemp_CONST, d->mAddr, dsize );
                } else {
                   tl_assert(d->mAddr == NULL);
                   tl_assert(d->mSize == 0);
@@ -1081,7 +1082,8 @@ IRSB* lk_instrument ( VgCallbackClosure* closure,
 		    // FIXME: double element case is ignored here
 		    //addEvent_Dr( sbOut, cas->oldHi, cas->addr, dataSize ); 
 		    addEvent_Dr( sbOut, cas->oldLo, cas->addr, dataSize );
-               addEvent_Dw( sbOut, cas->addr, dataSize );
+		    // FIXME: cas->expdLo is not traced here
+		    addEvent_Dw( sbOut, cas->dataLo, cas->addr, dataSize );
             }
             if (clo_detailed_counts) {
                instrument_detail( sbOut, OpLoad, dataTy, NULL/*guard*/ );
@@ -1112,8 +1114,9 @@ IRSB* lk_instrument ( VgCallbackClosure* closure,
                /* SC */
                dataTy = typeOfIRExpr(tyenv, st->Ist.LLSC.storedata);
                if (clo_trace_mem)
-                  addEvent_Dw( sbOut, st->Ist.LLSC.addr,
-                                      sizeofIRType(dataTy) );
+		       addEvent_Dw( sbOut, lk_temp_of_expr(st->Ist.LLSC.storedata), 
+				    st->Ist.LLSC.addr,
+				    sizeofIRType(dataTy) );
                if (clo_detailed_counts)
                   instrument_detail( sbOut, OpStore, dataTy, NULL/*guard*/ );
 	       // FIXME: the LLSC.result is also written
