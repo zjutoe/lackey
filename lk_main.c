@@ -511,6 +511,7 @@ typedef
       IRAtom*    addr;
       Int        size;
       IRAtom*    guard; /* :: Ity_I1, or NULL=="always True" */
+      Int dw_const;
    }
    Event;
 
@@ -704,7 +705,7 @@ void addEvent_Dw_guarded ( IRSB* sb, IRAtom* daddr, Int dsize, IRAtom* guard )
    preceding ordinary read event of the same size to the same
    address. */
 static
-void addEvent_Dw ( IRSB* sb, IRAtom* daddr, Int dsize )
+void addEvent_Dw ( IRSB* sb, IRAtom* daddr, Int dsize, Int dw_const )
 {
    Event* lastEvt;
    Event* evt;
@@ -733,6 +734,7 @@ void addEvent_Dw ( IRSB* sb, IRAtom* daddr, Int dsize )
    evt->size  = dsize;
    evt->addr  = daddr;
    evt->guard = NULL;
+   evt->dw_const = dw_const;
    events_used++;
 }
 
@@ -986,9 +988,16 @@ IRSB* lk_instrument ( VgCallbackClosure* closure,
             IRExpr* data = st->Ist.Store.data;
             IRType  type = typeOfIRExpr(tyenv, data);
             tl_assert(type != Ity_INVALID);
+	    IRTemp tmp;
             if (clo_trace_mem) {
-               addEvent_Dw( sbOut, st->Ist.Store.addr,
-                            sizeofIRType(type) );
+		    if ( data->tag == Iex_Const ) {
+			    // tmp = data->Iex.Const.con.
+			    
+		    } else if (data->tag == Iex_RdTmp) {
+			    VG_(umsg)("S: data->tag==Iex_RdTmp\n");
+		    }
+		    addEvent_Dw( sbOut, st->Ist.Store.addr,
+				 sizeofIRType(type) );
             }
             if (clo_detailed_counts) {
                instrument_detail( sbOut, OpStore, type, NULL/*guard*/ );
