@@ -573,7 +573,7 @@ static VG_REGPARM(3) void trace_expr(UInt op, IRTemp lhs, IRTemp tmp1, IRTemp tm
 
 static VG_REGPARM(3) void trace_load(Addr addr, SizeT size, IRTemp tmp)
 {
-	VG_(printf)(" L T%d G%08lx,%lu\n", tmp, addr, size);
+	VG_(printf)("L T%d M%08lx,%lu\n", tmp, addr, size);
 }
 
 static VG_REGPARM(2) void trace_store(Addr addr, SizeT size)
@@ -742,16 +742,16 @@ static VG_REGPARM(3) void trace_put(Int n_op, Int offset, IRTemp tmp)
 {
 	//VG_(printf)(" P %d %d\n", offset, n_guest_instrs_sb);
 	if (n_op == 0) {
-		VG_(printf)(" P G%d\n", offset);
+		VG_(printf)("P G%d\n", offset);
 	} else if (n_op == 1) {
-		VG_(printf)(" P G%d T%d\n", offset, tmp);
+		VG_(printf)("P T%d G%d\n", tmp, offset);
 	}
 }
 
 static VG_REGPARM(2) void trace_get(Int offset, IRTemp tmp)
 {
 	//VG_(printf)(" G %d %d\n", offset, n_guest_instrs_sb);
-	VG_(printf)(" G G%d T%d\n", offset, tmp);
+	VG_(printf)("G G%d T%d\n", offset, tmp);
 }
 
 
@@ -780,6 +780,23 @@ static void lk_post_clo_init(void)
          for (tyIx = 0; tyIx < N_TYPES; tyIx++)
             detailCounts[op][tyIx] = 0;
    }
+}
+
+IRTemp lk_temp_of_expr(IRExpr* e)
+{
+	switch (e->tag) {
+	Iex_RdTmp: 
+		return e->Iex.RdTmp.tmp; 
+		break;
+	Iex_Const:
+		return IRTemp_CONST;
+		break;		
+	default:
+		return IRTemp_INVALID;
+		break;
+	}
+
+	return IRTemp_INVALID;
 }
 
 static
@@ -1052,7 +1069,9 @@ IRSB* lk_instrument ( VgCallbackClosure* closure,
             if (cas->dataHi != NULL)
                dataSize *= 2; /* since it's a doubleword-CAS */
             if (clo_trace_mem) {
-		    addEvent_Dr( sbOut, 0, cas->addr, dataSize );
+		    // FIXME: double element case is ignored here
+		    //addEvent_Dr( sbOut, cas->oldHi, cas->addr, dataSize ); 
+		    addEvent_Dr( sbOut, cas->oldLo, cas->addr, dataSize );
                addEvent_Dw( sbOut, cas->addr, dataSize );
             }
             if (clo_detailed_counts) {
@@ -1088,6 +1107,7 @@ IRSB* lk_instrument ( VgCallbackClosure* closure,
                                       sizeofIRType(dataTy) );
                if (clo_detailed_counts)
                   instrument_detail( sbOut, OpStore, dataTy, NULL/*guard*/ );
+	       // FIXME: the LLSC.result is also written
             }
             addStmtToIRSB( sbOut, st );
             break;
