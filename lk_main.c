@@ -578,6 +578,8 @@ static VG_REGPARM(3) void trace_load(Addr addr, SizeT size, IRTemp tmp)
 
 static VG_REGPARM(3) void trace_store(Addr addr, SizeT size, IRTemp tmp)
 {
+	if (tmp == IRTemp_INVALID)
+		VG_(umsg)("store: invalid tmp\n");
 	if (tmp == IRTemp_CONST || tmp == IRTemp_INVALID)
 		VG_(printf)("S M%08lx,%lu\n", addr, size);
 	else
@@ -787,21 +789,9 @@ static void lk_post_clo_init(void)
    }
 }
 
-IRTemp lk_temp_of_expr(IRExpr* e)
+IRTemp lk_temp_of_expr(IRExpr* data)
 {
-	switch (e->tag) {
-	Iex_RdTmp: 
-		return e->Iex.RdTmp.tmp; 
-		break;
-	Iex_Const:
-		return IRTemp_CONST;
-		break;		
-	default:
-		return IRTemp_INVALID;
-		break;
-	}
-
-	return IRTemp_INVALID;
+	return data->tag == Iex_RdTmp ? data->Iex.RdTmp.tmp : data->tag == Iex_Const ? IRTemp_CONST : IRTemp_INVALID;
 }
 
 static
@@ -993,7 +983,10 @@ IRSB* lk_instrument ( VgCallbackClosure* closure,
             tl_assert(type != Ity_INVALID);
 	    IRTemp tmp;
             if (clo_trace_mem) {
-		    tmp = lk_temp_of_expr(data);
+		    // tmp = lk_temp_of_expr(data);
+		    tmp = data->tag == Iex_RdTmp ? data->Iex.RdTmp.tmp : data->tag == Iex_Const ? IRTemp_CONST : IRTemp_INVALID;
+		    if (tmp == IRTemp_INVALID) 
+			    VG_(umsg)("store tmp invalid %d tag=%x\n", __LINE__, data->tag);
 		    addEvent_Dw( sbOut, tmp, st->Ist.Store.addr,
 				 sizeofIRType(type) );
             }
@@ -1013,6 +1006,8 @@ IRSB* lk_instrument ( VgCallbackClosure* closure,
 	    IRTemp tmp;
             if (clo_trace_mem) {
 		    tmp = lk_temp_of_expr(data);
+		    if (tmp == IRTemp_INVALID) 
+			    VG_(umsg)("store tmp invalid %d\n", __LINE__);
 		    addEvent_Dw_guarded( sbOut, tmp, sg->addr,
 					 sizeofIRType(type), sg->guard );
             }
@@ -1083,7 +1078,7 @@ IRSB* lk_instrument ( VgCallbackClosure* closure,
 		    //addEvent_Dr( sbOut, cas->oldHi, cas->addr, dataSize ); 
 		    addEvent_Dr( sbOut, cas->oldLo, cas->addr, dataSize );
 		    // FIXME: cas->expdLo is not traced here
-		    addEvent_Dw( sbOut, cas->dataLo, cas->addr, dataSize );
+		    addEvent_Dw( sbOut, lk_temp_of_expr(cas->dataLo), cas->addr, dataSize );
             }
             if (clo_detailed_counts) {
                instrument_detail( sbOut, OpLoad, dataTy, NULL/*guard*/ );
