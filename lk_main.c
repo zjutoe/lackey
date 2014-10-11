@@ -770,7 +770,7 @@ static VG_REGPARM(2) void trace_get(Int offset, IRTemp tmp)
 
 static void trace_superblock(Addr addr)
 {
-   VG_(printf)(" W %d\n", n_guest_instrs_sb);
+   VG_(printf)("W %d\n", n_guest_instrs_sb);
    VG_(printf)("SB %08lx\n", addr);
    n_guest_instrs_sb = 0;
 }
