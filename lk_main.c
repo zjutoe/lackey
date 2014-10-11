@@ -377,6 +377,106 @@ static void instrument_detail(IRSB* sb, Op op, IRType type, IRAtom* guard)
    addStmtToIRSB( sb, IRStmt_Dirty(di) );
 }
 
+#define EXPR_TMP(op, t, arg)						\
+	do {								\
+		switch(arg->tag) {					\
+		case Iex_RdTmp:						\
+			t = arg->Iex.RdTmp.tmp;				\
+			break;						\
+		case Iex_Const:						\
+			t = arg->Iex.Const.con->tag;			\
+			op--;						\
+			break;						\
+                default: VG_(printf)("non-flat expr: tag=%d\n", arg->tag); \
+			break;						\
+		}							\
+        } while(0)
+
+static VG_REGPARM(3) void trace_expr(UInt op, IRTemp lhs, IRTemp tmp1, IRTemp tmp2, IRTemp tmp3, IRTemp tmp4);
+/* A helper that adds the instrumentation for a detail.  guard ::
+   Ity_I1 is the guarding condition for the event.  If NULL it is
+   assumed to mean "always True". */
+static void instrument_expr(IRSB* sb, IRTemp lhs, IRExpr* expr, IRAtom* guard)
+{
+   IRDirty* di;
+   IRExpr** argv;
+   // const UInt typeIx = type2index(type);
+
+   // tl_assert(op < N_OPS);
+   // tl_assert(typeIx < N_TYPES);
+
+   IRExpr *arg1, *arg2, *arg3, *arg4;
+   IRTemp tmp1, tmp2, tmp3, tmp4;
+   UInt op = 0;
+   tmp1 = tmp2 = tmp3 = tmp4 = 0;
+   switch (expr->tag) {
+   case Iex_Unop:
+	   op = 1;
+	   arg1 = expr->Iex.Unop.arg;
+	   EXPR_TMP(op, tmp1, arg1);
+	   VG_(umsg)("Unop op=%d arg->tag=%d\n", op, arg1->tag);
+	   break;
+   case Iex_Binop:
+	   op = 2;
+	   arg1 = expr->Iex.Binop.arg1;
+	   EXPR_TMP(op, tmp1, arg1);
+	   arg2 = expr->Iex.Binop.arg2;
+	   EXPR_TMP(op, tmp2, arg2);
+	   VG_(umsg)("Binop op=%d, arg1->tag=%d arg2->tag=%d\n", 
+		     op, arg1->tag, arg2->tag);
+	   break;
+   case Iex_Triop:
+	   op = 3;
+	   arg1 = expr->Iex.Triop.details->arg1;
+	   EXPR_TMP(op, tmp1, arg1);
+	   arg2 = expr->Iex.Triop.details->arg2;
+	   EXPR_TMP(op, tmp2, arg2);
+	   arg3 = expr->Iex.Triop.details->arg3;
+	   EXPR_TMP(op, tmp3, arg3);
+	   VG_(umsg)("Triop op=%d arg1->tag=%d  arg2->tag=%d arg3->tag=%d\n", 
+		     op, arg1->tag, arg2->tag, arg3->tag);
+	   break;
+   case Iex_Qop:
+	   op = 4;
+	   arg1 = expr->Iex.Qop.details->arg1;
+	   EXPR_TMP(op, tmp1, arg1);
+	   arg2 = expr->Iex.Qop.details->arg2;
+	   EXPR_TMP(op, tmp2, arg2);
+	   arg3 = expr->Iex.Qop.details->arg3;
+	   EXPR_TMP(op, tmp3, arg3);
+	   arg4 = expr->Iex.Qop.details->arg4;
+	   EXPR_TMP(op, tmp4, arg4);
+	   VG_(umsg)("Qop op=%d arg1->tag=%d arg2->tag=%d arg3->tag=%d arg4->tag=%d\n", 
+		     op, arg1->tag, arg2->tag, arg3->tag, arg4->tag);
+	   break;
+   case Iex_ITE:
+	   op = 3;
+	   arg1 = expr->Iex.ITE.cond;
+	   EXPR_TMP(op, tmp1, arg1);
+	   arg2 = expr->Iex.ITE.iftrue;
+	   EXPR_TMP(op, tmp2, arg2);
+	   arg3 = expr->Iex.ITE.iffalse;
+	   EXPR_TMP(op, tmp3, arg3);
+	   VG_(umsg)("ITE op=%d arg1->tag=%d  arg2->tag=%d arg3->tag=%d\n", 
+		     op, arg1->tag, arg2->tag, arg3->tag);
+	   break;
+   default:
+	   break;
+   }
+
+   argv = mkIRExprVec_6( mkIRExpr_HWord(op),
+			 mkIRExpr_HWord(lhs),
+			 mkIRExpr_HWord(tmp1),
+			 mkIRExpr_HWord(tmp2),
+			 mkIRExpr_HWord(tmp3),
+			 mkIRExpr_HWord(tmp4) );
+   di = unsafeIRDirty_0_N( 3, "trace_expr",
+			   VG_(fnptr_to_fnentry)( &trace_expr ), 
+			   argv );
+   if (guard) di->guard = guard;
+   addStmtToIRSB( sb, IRStmt_Dirty(di) );
+}
+
 /* Summarize and print the details. */
 static void print_details ( void )
 {
@@ -407,6 +507,7 @@ typedef
 typedef
    struct {
       EventKind  ekind;
+      IRTemp     tmp;
       IRAtom*    addr;
       Int        size;
       IRAtom*    guard; /* :: Ity_I1, or NULL=="always True" */
@@ -455,14 +556,34 @@ static VG_REGPARM(2) void trace_instr(Addr addr, SizeT size)
    VG_(printf)("I  %08lx,%lu\n", addr, size);
 }
 
-static VG_REGPARM(2) void trace_load(Addr addr, SizeT size)
+static VG_REGPARM(3) void trace_expr(UInt op, IRTemp lhs, IRTemp tmp1, IRTemp tmp2, IRTemp tmp3, IRTemp tmp4)
+
 {
-   VG_(printf)(" L %08lx,%lu\n", addr, size);
+	VG_(printf)("OP%d T%d = ", op, lhs);
+	switch (op) {
+	case 4: VG_(printf)("T%d ", tmp4);
+	case 3: VG_(printf)("T%d ", tmp3);
+	case 2: VG_(printf)("T%d ", tmp2);
+	case 1: VG_(printf)("T%d ", tmp1);
+	default:
+		break;
+	}
+	VG_(printf)("\n");
 }
 
-static VG_REGPARM(2) void trace_store(Addr addr, SizeT size)
+static VG_REGPARM(3) void trace_load(Addr addr, SizeT size, IRTemp tmp)
 {
-   VG_(printf)(" S %08lx,%lu\n", addr, size);
+	VG_(printf)("L T%d M%08lx,%lu\n", tmp, addr, size);
+}
+
+static VG_REGPARM(3) void trace_store(Addr addr, SizeT size, IRTemp tmp)
+{
+	if (tmp == IRTemp_INVALID)
+		VG_(umsg)("store: invalid tmp\n");
+	if (tmp == IRTemp_CONST || tmp == IRTemp_INVALID)
+		VG_(printf)("S M%08lx,%lu\n", addr, size);
+	else
+		VG_(printf)("S T%d M%08lx,%lu\n", tmp, addr, size);
 }
 
 static VG_REGPARM(2) void trace_modify(Addr addr, SizeT size)
@@ -502,8 +623,8 @@ static void flushEvents(IRSB* sb)
       }
 
       // Add the helper.
-      argv = mkIRExprVec_2( ev->addr, mkIRExpr_HWord( ev->size ) );
-      di   = unsafeIRDirty_0_N( /*regparms*/2, 
+      argv = mkIRExprVec_3( ev->addr, mkIRExpr_HWord( ev->size ) , mkIRExpr_HWord( ev->tmp ) );
+      di   = unsafeIRDirty_0_N( /*regparms*/3, 
                                 helperName, VG_(fnptr_to_fnentry)( helperAddr ),
                                 argv );
       if (ev->guard) {
@@ -539,7 +660,7 @@ static void addEvent_Ir ( IRSB* sb, IRAtom* iaddr, UInt isize )
 
 /* Add a guarded read event. */
 static
-void addEvent_Dr_guarded ( IRSB* sb, IRAtom* daddr, Int dsize, IRAtom* guard )
+void addEvent_Dr_guarded ( IRSB* sb, IRTemp tmp, IRAtom* daddr, Int dsize, IRAtom* guard )
 {
    Event* evt;
    tl_assert(clo_trace_mem);
@@ -550,6 +671,7 @@ void addEvent_Dr_guarded ( IRSB* sb, IRAtom* daddr, Int dsize, IRAtom* guard )
    tl_assert(events_used >= 0 && events_used < N_EVENTS);
    evt = &events[events_used];
    evt->ekind = Event_Dr;
+   evt->tmp   = tmp;
    evt->addr  = daddr;
    evt->size  = dsize;
    evt->guard = guard;
@@ -559,14 +681,14 @@ void addEvent_Dr_guarded ( IRSB* sb, IRAtom* daddr, Int dsize, IRAtom* guard )
 /* Add an ordinary read event, by adding a guarded read event with an
    always-true guard. */
 static
-void addEvent_Dr ( IRSB* sb, IRAtom* daddr, Int dsize )
+void addEvent_Dr ( IRSB* sb, IRTemp tmp, IRAtom* daddr, Int dsize )
 {
-   addEvent_Dr_guarded(sb, daddr, dsize, NULL);
+	addEvent_Dr_guarded(sb, tmp, daddr, dsize, NULL);
 }
 
 /* Add a guarded write event. */
 static
-void addEvent_Dw_guarded ( IRSB* sb, IRAtom* daddr, Int dsize, IRAtom* guard )
+void addEvent_Dw_guarded ( IRSB* sb, IRTemp tmp, IRAtom* daddr, Int dsize, IRAtom* guard )
 {
    Event* evt;
    tl_assert(clo_trace_mem);
@@ -580,6 +702,7 @@ void addEvent_Dw_guarded ( IRSB* sb, IRAtom* daddr, Int dsize, IRAtom* guard )
    evt->addr  = daddr;
    evt->size  = dsize;
    evt->guard = guard;
+   evt->tmp   = tmp;
    events_used++;
 }
 
@@ -587,7 +710,7 @@ void addEvent_Dw_guarded ( IRSB* sb, IRAtom* daddr, Int dsize, IRAtom* guard )
    preceding ordinary read event of the same size to the same
    address. */
 static
-void addEvent_Dw ( IRSB* sb, IRAtom* daddr, Int dsize )
+void addEvent_Dw ( IRSB* sb, IRTemp tmp, IRAtom* daddr, Int dsize )
 {
    Event* lastEvt;
    Event* evt;
@@ -616,19 +739,26 @@ void addEvent_Dw ( IRSB* sb, IRAtom* daddr, Int dsize )
    evt->size  = dsize;
    evt->addr  = daddr;
    evt->guard = NULL;
+   evt->tmp = tmp;
    events_used++;
 }
 
 // stuff for --trace-register
 
-static void trace_put(Int offset)
+static VG_REGPARM(3) void trace_put(Int n_op, Int offset, IRTemp tmp)
 {
-	VG_(printf)(" P %d %d\n", offset, n_guest_instrs_sb);
+	//VG_(printf)(" P %d %d\n", offset, n_guest_instrs_sb);
+	if (n_op == 0) {
+		VG_(printf)("P G%d\n", offset);
+	} else if (n_op == 1) {
+		VG_(printf)("P T%d G%d\n", tmp, offset);
+	}
 }
 
-static void trace_get(Int offset)
+static VG_REGPARM(2) void trace_get(Int offset, IRTemp tmp)
 {
-	VG_(printf)(" G %d %d\n", offset, n_guest_instrs_sb);
+	//VG_(printf)(" G %d %d\n", offset, n_guest_instrs_sb);
+	VG_(printf)("G T%d G%d\n", tmp, offset);
 }
 
 
@@ -657,6 +787,11 @@ static void lk_post_clo_init(void)
          for (tyIx = 0; tyIx < N_TYPES; tyIx++)
             detailCounts[op][tyIx] = 0;
    }
+}
+
+IRTemp lk_temp_of_expr(IRExpr* data)
+{
+	return data->tag == Iex_RdTmp ? data->Iex.RdTmp.tmp : data->tag == Iex_Const ? IRTemp_CONST : IRTemp_INVALID;
 }
 
 static
@@ -725,7 +860,9 @@ IRSB* lk_instrument ( VgCallbackClosure* closure,
                                     mkIRExprVec_0() );
          addStmtToIRSB( sbOut, IRStmt_Dirty(di) );
       }
-      
+
+      Int n_op = 0;
+      IRTemp t;
       switch (st->tag) {
          case Ist_NoOp:
          case Ist_AbiHint:
@@ -734,15 +871,22 @@ IRSB* lk_instrument ( VgCallbackClosure* closure,
             break;
 
          case Ist_Put:
-		 argv = mkIRExprVec_1( mkIRExpr_HWord( st->Ist.Put.offset ) );
-		 di = unsafeIRDirty_0_N( 0, "trace_put",
+		 if (st->Ist.Put.data->tag == Iex_RdTmp) {
+			 n_op = 1;
+			 t = st->Ist.Put.data->Iex.RdTmp.tmp;
+		 }
+		 VG_(umsg)("Put n_op=%d t=%d g=%d\n", n_op, t, st->Ist.Put.offset);
+		 argv = mkIRExprVec_3( mkIRExpr_HWord( n_op ),
+				       mkIRExpr_HWord( st->Ist.Put.offset ),
+				       mkIRExpr_HWord( t ) );
+		 di = unsafeIRDirty_0_N( 3, "trace_put",
 		 			 VG_(fnptr_to_fnentry)( &trace_put ),
 					 argv);
 		 addStmtToIRSB( sbOut, IRStmt_Dirty(di) );
 
 		 addStmtToIRSB( sbOut, st );
 		 break;
-         case Ist_PutI:
+         case Ist_PutI:		//FIXME should trace this too
 		 addStmtToIRSB( sbOut, st );
 		 break;
 
@@ -797,15 +941,16 @@ IRSB* lk_instrument ( VgCallbackClosure* closure,
             if (clo_trace_mem) {
                IRExpr* data = st->Ist.WrTmp.data;
                if (data->tag == Iex_Load) {
-                  addEvent_Dr( sbOut, data->Iex.Load.addr,
-                               sizeofIRType(data->Iex.Load.ty) );
+		       addEvent_Dr( sbOut, st->Ist.WrTmp.tmp, data->Iex.Load.addr,
+				    sizeofIRType(data->Iex.Load.ty) );
                }
 	       if (data->tag == Iex_Get) {
-		 argv = mkIRExprVec_1( mkIRExpr_HWord( data->Iex.Get.offset ) );
-		 di = unsafeIRDirty_0_N( 0, "trace_get",
-		 			 VG_(fnptr_to_fnentry)( &trace_get ),
-					 argv);
-		 addStmtToIRSB( sbOut, IRStmt_Dirty(di) );		       
+		       argv = mkIRExprVec_2( mkIRExpr_HWord( data->Iex.Get.offset ),
+					     mkIRExpr_HWord( st->Ist.WrTmp.tmp ) );
+		       di = unsafeIRDirty_0_N( 2, "trace_get",
+					       VG_(fnptr_to_fnentry)( &trace_get ),
+					       argv);
+		       addStmtToIRSB( sbOut, IRStmt_Dirty(di) );
 	       }
 
             }
@@ -822,7 +967,8 @@ IRSB* lk_instrument ( VgCallbackClosure* closure,
                   case Iex_Triop:
                   case Iex_Qop:
                   case Iex_ITE:
-                     instrument_detail( sbOut, OpAlu, type, NULL/*guard*/ );
+		     instrument_detail( sbOut, OpAlu, type, NULL/*guard*/ );
+		     instrument_expr( sbOut, st->Ist.WrTmp.tmp, expr, NULL );
                      break;
                   default:
                      break;
@@ -835,13 +981,19 @@ IRSB* lk_instrument ( VgCallbackClosure* closure,
             IRExpr* data = st->Ist.Store.data;
             IRType  type = typeOfIRExpr(tyenv, data);
             tl_assert(type != Ity_INVALID);
+	    IRTemp tmp;
             if (clo_trace_mem) {
-               addEvent_Dw( sbOut, st->Ist.Store.addr,
-                            sizeofIRType(type) );
+		    // tmp = lk_temp_of_expr(data);
+		    tmp = data->tag == Iex_RdTmp ? data->Iex.RdTmp.tmp : data->tag == Iex_Const ? IRTemp_CONST : IRTemp_INVALID;
+		    if (tmp == IRTemp_INVALID) 
+			    VG_(umsg)("store tmp invalid %d tag=%x\n", __LINE__, data->tag);
+		    addEvent_Dw( sbOut, tmp, st->Ist.Store.addr,
+				 sizeofIRType(type) );
             }
             if (clo_detailed_counts) {
                instrument_detail( sbOut, OpStore, type, NULL/*guard*/ );
             }
+
             addStmtToIRSB( sbOut, st );
             break;
          }
@@ -851,9 +1003,13 @@ IRSB* lk_instrument ( VgCallbackClosure* closure,
             IRExpr*   data = sg->data;
             IRType    type = typeOfIRExpr(tyenv, data);
             tl_assert(type != Ity_INVALID);
+	    IRTemp tmp;
             if (clo_trace_mem) {
-               addEvent_Dw_guarded( sbOut, sg->addr,
-                                    sizeofIRType(type), sg->guard );
+		    tmp = lk_temp_of_expr(data);
+		    if (tmp == IRTemp_INVALID) 
+			    VG_(umsg)("store tmp invalid %d\n", __LINE__);
+		    addEvent_Dw_guarded( sbOut, tmp, sg->addr,
+					 sizeofIRType(type), sg->guard );
             }
             if (clo_detailed_counts) {
                instrument_detail( sbOut, OpStore, type, sg->guard );
@@ -869,7 +1025,7 @@ IRSB* lk_instrument ( VgCallbackClosure* closure,
             typeOfIRLoadGOp(lg->cvt, &typeWide, &type);
             tl_assert(type != Ity_INVALID);
             if (clo_trace_mem) {
-               addEvent_Dr_guarded( sbOut, lg->addr,
+		    addEvent_Dr_guarded( sbOut, lg->dst, lg->addr,
                                     sizeofIRType(type), lg->guard );
             }
             if (clo_detailed_counts) {
@@ -889,9 +1045,10 @@ IRSB* lk_instrument ( VgCallbackClosure* closure,
                   tl_assert(d->mSize != 0);
                   dsize = d->mSize;
                   if (d->mFx == Ifx_Read || d->mFx == Ifx_Modify)
-                     addEvent_Dr( sbOut, d->mAddr, dsize );
+			  addEvent_Dr( sbOut, d->tmp, d->mAddr, dsize );
                   if (d->mFx == Ifx_Write || d->mFx == Ifx_Modify)
-                     addEvent_Dw( sbOut, d->mAddr, dsize );
+			  //FIXME: IRTemp_CONST is not true
+			  addEvent_Dw( sbOut, IRTemp_CONST, d->mAddr, dsize );
                } else {
                   tl_assert(d->mAddr == NULL);
                   tl_assert(d->mSize == 0);
@@ -917,8 +1074,11 @@ IRSB* lk_instrument ( VgCallbackClosure* closure,
             if (cas->dataHi != NULL)
                dataSize *= 2; /* since it's a doubleword-CAS */
             if (clo_trace_mem) {
-               addEvent_Dr( sbOut, cas->addr, dataSize );
-               addEvent_Dw( sbOut, cas->addr, dataSize );
+		    // FIXME: double element case is ignored here
+		    //addEvent_Dr( sbOut, cas->oldHi, cas->addr, dataSize ); 
+		    addEvent_Dr( sbOut, cas->oldLo, cas->addr, dataSize );
+		    // FIXME: cas->expdLo is not traced here
+		    addEvent_Dw( sbOut, lk_temp_of_expr(cas->dataLo), cas->addr, dataSize );
             }
             if (clo_detailed_counts) {
                instrument_detail( sbOut, OpLoad, dataTy, NULL/*guard*/ );
@@ -938,8 +1098,8 @@ IRSB* lk_instrument ( VgCallbackClosure* closure,
                /* LL */
                dataTy = typeOfIRTemp(tyenv, st->Ist.LLSC.result);
                if (clo_trace_mem) {
-                  addEvent_Dr( sbOut, st->Ist.LLSC.addr,
-                                      sizeofIRType(dataTy) );
+		       addEvent_Dr( sbOut, st->Ist.LLSC.result, st->Ist.LLSC.addr,
+				    sizeofIRType(dataTy) );
                   /* flush events before LL, helps SC to succeed */
                   flushEvents(sbOut);
 	       }
@@ -949,10 +1109,12 @@ IRSB* lk_instrument ( VgCallbackClosure* closure,
                /* SC */
                dataTy = typeOfIRExpr(tyenv, st->Ist.LLSC.storedata);
                if (clo_trace_mem)
-                  addEvent_Dw( sbOut, st->Ist.LLSC.addr,
-                                      sizeofIRType(dataTy) );
+		       addEvent_Dw( sbOut, lk_temp_of_expr(st->Ist.LLSC.storedata), 
+				    st->Ist.LLSC.addr,
+				    sizeofIRType(dataTy) );
                if (clo_detailed_counts)
                   instrument_detail( sbOut, OpStore, dataTy, NULL/*guard*/ );
+	       // FIXME: the LLSC.result is also written
             }
             addStmtToIRSB( sbOut, st );
             break;

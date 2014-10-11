@@ -31,3 +31,7 @@ docs
 *.eps
 *.pdf
 .DS_Store
+
+# data
+data
+data_chap4

@@ -6,24 +6,17 @@ valgrind tool to trace code execution
 Usage
 =====
 
-1. lackey
+$ ./run.sh prog
 
-$ valgrind --log-file=lackey_trace.log --tool=lackey --trace-mem=yes --trace-superblocks=yes exe
-
-exe: the executable to run in valgrind
-
-2. mrb_shared_L1.lua
-
-$ luajit mrb_shared_L1.lua -c$core -s$size -d$depth < lackey_trace.log
-
-core: number of cores
-size: size of merged code block
-depth: reorder buffer depth
-lackey_trace.log: the trace of valgrind lackey plugin
+e.g. "./run.sh date"
 
 
 TODO
 ====
+
+OOO core: to schedule the instructions inside the block, so the memory
+access latencies are hidden. The instruction reoder should be done
+along with the block reordering, i.e. 2 levels of OOO.
 
 To collect data for 3 different strategies of inter-core register value sharing:
 
