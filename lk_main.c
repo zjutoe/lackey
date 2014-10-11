@@ -178,6 +178,8 @@
 #include "pub_tool_options.h"
 #include "pub_tool_machine.h"     // VG_(fnptr_to_fnentry)
 
+#define IRTemp_CONST ((IRTemp)0xFFFFFFFE)
+
 /*------------------------------------------------------------*/
 /*--- Command line options                                 ---*/
 /*------------------------------------------------------------*/
