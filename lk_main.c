@@ -416,7 +416,7 @@ static void instrument_expr(IRSB* sb, IRTemp lhs, IRExpr* expr, IRAtom* guard)
 	   op = 1;
 	   arg1 = expr->Iex.Unop.arg;
 	   EXPR_TMP(op, tmp1, arg1);
-	   VG_(umsg)("Unop op=%d arg->tag=%d\n", op, arg1->tag);
+	   //VG_(umsg)("Unop op=%d arg->tag=%d\n", op, arg1->tag);
 	   break;
    case Iex_Binop:
 	   op = 2;
@@ -424,8 +424,7 @@ static void instrument_expr(IRSB* sb, IRTemp lhs, IRExpr* expr, IRAtom* guard)
 	   EXPR_TMP(op, tmp1, arg1);
 	   arg2 = expr->Iex.Binop.arg2;
 	   EXPR_TMP(op, tmp2, arg2);
-	   VG_(umsg)("Binop op=%d, arg1->tag=%d arg2->tag=%d\n", 
-		     op, arg1->tag, arg2->tag);
+	   //VG_(umsg)("Binop op=%d, arg1->tag=%d arg2->tag=%d\n", op, arg1->tag, arg2->tag);
 	   break;
    case Iex_Triop:
 	   op = 3;
@@ -435,8 +434,8 @@ static void instrument_expr(IRSB* sb, IRTemp lhs, IRExpr* expr, IRAtom* guard)
 	   EXPR_TMP(op, tmp2, arg2);
 	   arg3 = expr->Iex.Triop.details->arg3;
 	   EXPR_TMP(op, tmp3, arg3);
-	   VG_(umsg)("Triop op=%d arg1->tag=%d  arg2->tag=%d arg3->tag=%d\n", 
-		     op, arg1->tag, arg2->tag, arg3->tag);
+	   // VG_(umsg)("Triop op=%d arg1->tag=%d  arg2->tag=%d arg3->tag=%d\n", 
+	   // 	     op, arg1->tag, arg2->tag, arg3->tag);
 	   break;
    case Iex_Qop:
 	   op = 4;
@@ -448,8 +447,8 @@ static void instrument_expr(IRSB* sb, IRTemp lhs, IRExpr* expr, IRAtom* guard)
 	   EXPR_TMP(op, tmp3, arg3);
 	   arg4 = expr->Iex.Qop.details->arg4;
 	   EXPR_TMP(op, tmp4, arg4);
-	   VG_(umsg)("Qop op=%d arg1->tag=%d arg2->tag=%d arg3->tag=%d arg4->tag=%d\n", 
-		     op, arg1->tag, arg2->tag, arg3->tag, arg4->tag);
+	   // VG_(umsg)("Qop op=%d arg1->tag=%d arg2->tag=%d arg3->tag=%d arg4->tag=%d\n", 
+	   // 	     op, arg1->tag, arg2->tag, arg3->tag, arg4->tag);
 	   break;
    case Iex_ITE:
 	   op = 3;
@@ -459,8 +458,8 @@ static void instrument_expr(IRSB* sb, IRTemp lhs, IRExpr* expr, IRAtom* guard)
 	   EXPR_TMP(op, tmp2, arg2);
 	   arg3 = expr->Iex.ITE.iffalse;
 	   EXPR_TMP(op, tmp3, arg3);
-	   VG_(umsg)("ITE op=%d arg1->tag=%d  arg2->tag=%d arg3->tag=%d\n", 
-		     op, arg1->tag, arg2->tag, arg3->tag);
+	   // VG_(umsg)("ITE op=%d arg1->tag=%d  arg2->tag=%d arg3->tag=%d\n", 
+	   // 	     op, arg1->tag, arg2->tag, arg3->tag);
 	   break;
    default:
 	   break;
@@ -877,7 +876,7 @@ IRSB* lk_instrument ( VgCallbackClosure* closure,
 			 n_op = 1;
 			 t = st->Ist.Put.data->Iex.RdTmp.tmp;
 		 }
-		 VG_(umsg)("Put n_op=%d t=%d g=%d\n", n_op, t, st->Ist.Put.offset);
+		 //VG_(umsg)("Put n_op=%d t=%d g=%d\n", n_op, t, st->Ist.Put.offset);
 		 argv = mkIRExprVec_3( mkIRExpr_HWord( n_op ),
 				       mkIRExpr_HWord( st->Ist.Put.offset ),
 				       mkIRExpr_HWord( t ) );
@@ -987,8 +986,6 @@ IRSB* lk_instrument ( VgCallbackClosure* closure,
             if (clo_trace_mem) {
 		    // tmp = lk_temp_of_expr(data);
 		    tmp = data->tag == Iex_RdTmp ? data->Iex.RdTmp.tmp : data->tag == Iex_Const ? IRTemp_CONST : IRTemp_INVALID;
-		    if (tmp == IRTemp_INVALID) 
-			    VG_(umsg)("store tmp invalid %d tag=%x\n", __LINE__, data->tag);
 		    addEvent_Dw( sbOut, tmp, st->Ist.Store.addr,
 				 sizeofIRType(type) );
             }
@@ -1008,8 +1005,6 @@ IRSB* lk_instrument ( VgCallbackClosure* closure,
 	    IRTemp tmp;
             if (clo_trace_mem) {
 		    tmp = lk_temp_of_expr(data);
-		    if (tmp == IRTemp_INVALID) 
-			    VG_(umsg)("store tmp invalid %d\n", __LINE__);
 		    addEvent_Dw_guarded( sbOut, tmp, sg->addr,
 					 sizeofIRType(type), sg->guard );
             }
