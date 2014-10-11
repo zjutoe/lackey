@@ -159,7 +159,17 @@ function issue_sb(rob)
 	 cid = cid + 1
 
 	 for _, ins in ipairs(v.inst) do
-	    print(string.format("%s %s", ins.tag, ins.addr))
+	    if ins.tag == 'OP' then
+	       io.write('OP ', ins.to)
+	       if ins.ti1 ~=nil then io.write(' ', ins.ti1) end
+	       if ins.ti2 ~=nil then io.write(' ', ins.ti2) end
+	       if ins.ti3 ~=nil then io.write(' ', ins.ti3) end
+	       print('')
+	    elseif ins.tag == 'I' then
+	       print(string.format("%s %s", ins.tag, ins.addr))
+	    else
+	       print(string.format("%s %s %s", ins.tag, ins.addr, ins.tmp))
+	    end
 	 end
 	 -- for _, mem_rw in ipairs(v.mem_access) do
 	 --    print(string.format('MEM %d %x', mem_rw.type, mem_rw.addr))
@@ -257,15 +267,18 @@ function parse_lackey_log(sb_size, sb_merge)
 	       -- inst[#inst + 1] = {tag="SB", addr=addr}
 	    end
 	 elseif k == 'I ' then	    
-	    local addr, sz = string.match(line:sub(4), "(%x+),(%d+)")
+	    local addr, sz = string.match(line:sub(3), "(%x+),(%d+)")
 	    inst[#inst + 1] = {tag="I", addr=addr}
-	 elseif k == ' S' then
-	    local d_addr = tonumber(line:sub(4,11), 16)
+	 elseif k == 'S ' then
+	    local t, m = string.match(line:sub(3), "(%w+) (%w+)")
+	    local d_addr = tonumber(m:sub(2), 16)
 	    mem_writer[d_addr] = sb_addr
 	    mem_access[#mem_access + 1] = {type=1, addr=d_addr}
-	    inst[#inst + 1] = {tag="S", addr=line:sub(4,11)}
-	 elseif k == ' L' then
-	    local d_addr = tonumber(line:sub(4,11), 16)
+	    inst[#inst + 1] = {tag="S", addr=m:sub(2), tmp=t:sub(2)}
+	 elseif k == 'L ' then
+	    local t, m = string.match(line:sub(3), "(%w+) (%w+)")
+	    local d_addr = tonumber(m:sub(2), 16)
+	    -- local d_addr = tonumber(line:sub(4,11), 16)
 	    mem_access[#mem_access + 1] = {type=0, addr=d_addr}
 
 	    local dep = mem_writer[d_addr]
@@ -274,17 +287,22 @@ function parse_lackey_log(sb_size, sb_merge)
 	       -- add_depended(dep) 
 	       mem_input[d_addr] = tonumber(line:sub(13))
 	    end
-	    inst[#inst + 1] = {tag="L", addr=line:sub(4,11)}
-	 elseif k == ' P' then
-	    local reg_o, offset_sb = string.match(line:sub(4), "(%d+) (%d+)")
+	    inst[#inst + 1] = {tag="L", addr=m:sub(2), tmp=t:sub(2)}
+	 elseif k == 'P ' then
+	    --local reg_o, offset_sb = string.match(line:sub(4), "(%d+) (%d+)")
+	    local t, g = string.match(line:sub(3), "(%w+) (%w+)")
+	    local reg_o = g:sub(2)
+	    
 	    reg_writer[tonumber(reg_o)] = sb_addr
 	    -- reg_writer_seq[tonumber(reg_o)] = blk_seq
-	    reg_out_offset[reg_o] = offset_sb
+	    -- reg_out_offset[reg_o] = offset_sb
 	    reg_io[#reg_io + 1] = {io='o', reg=reg_o}
-	    logd("P", sb_addr, reg_o, offset_sb, reg_out_offset)
-	    inst[#inst + 1] = {tag="P", addr=reg_o}
-	 elseif k == ' G' then
-	    reg_i, offset_sb = string.match(line:sub(4), "(%d+) (%d+)")
+	    logd("P", sb_addr, reg_o, offset_sb)
+	    inst[#inst + 1] = {tag="P", addr=reg_o, tmp=t:sub(2)}
+	 elseif k == 'G ' then
+	    -- reg_i, offset_sb = string.match(line:sub(4), "(%d+) (%d+)")
+	    local t, g = string.match(line:sub(3), "(%w+) (%w+)")
+	    local reg_i = g:sub(2)
 	    local d_addr = tonumber(reg_i)
 	    local dep = reg_writer[d_addr]
 	    -- if dep and dep ~= sb_addr and blk_seq ~= reg_writer_seq[d_addr] then
@@ -292,15 +310,31 @@ function parse_lackey_log(sb_size, sb_merge)
 	       -- io.write("G "..line:sub(4).." ")
 	       add_depended(dep) 
 	       reg_input[d_addr] = 1
-	       reg_in_offset[reg_i] = offset_sb
+	       --reg_in_offset[reg_i] = offset_sb
 	       reg_io[#reg_io + 1] = {io='i', reg=reg_i, dep=dep}
-	       logd("G", sb_addr, reg_i, offset_sb, dep)
+	       logd("G", sb_addr, reg_i, dep)
 	    end
-	    inst[#inst + 1] = {tag="G", addr=reg_i}
+	    inst[#inst + 1] = {tag="G", addr=reg_i, tmp=t:sub(2)}
 	 -- elseif k == ' D' then
 	 --    add_depended(line:sub(4))
-	 elseif k == ' W' then
-	    weight_accu = weight_accu + tonumber(line:sub(4))
+	 elseif k == 'W ' then
+	    weight_accu = weight_accu + tonumber(line:sub(3))
+	 elseif k == 'OP' then
+	    local n_op = line:sub(3,3)
+	    local to, ti1, ti2, ti3
+	    if n_op == '3' then
+	       to, ti1, ti2, ti3 = string.match(line:sub(5), "(%w+) = (%w+) (%w+) (%w+)")
+	    elseif n_op == '2' then
+	       to, ti1, ti2 = string.match(line:sub(5), "(%w+) = (%w+) (%w+)")
+	    elseif n_op == '1' then
+	       to, ti1 = string.match(line:sub(5), "(%w+) = (%w+)")
+	    elseif n_op == '0' then
+	       to = string.match(line:sub(5), "(%w+) =")
+	    else
+	       print('ERROR: invalid OP')
+	    end
+	    print(line:sub(5), to, ti1, ti2, ti3)
+	    inst[#inst + 1] = {tag="OP", to=to, ti1=ti1, ti2=ti2, ti3=ti3}
 	 end
       end
    end

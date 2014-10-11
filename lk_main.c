@@ -554,7 +554,7 @@ static Int   events_used = 0;
 
 static VG_REGPARM(2) void trace_instr(Addr addr, SizeT size)
 {
-   VG_(printf)("I  %08lx,%lu\n", addr, size);
+   VG_(printf)("I %08lx,%lu\n", addr, size);
 }
 
 static VG_REGPARM(3) void trace_expr(UInt op, IRTemp lhs, IRTemp tmp1, IRTemp tmp2, IRTemp tmp3, IRTemp tmp4)
@@ -581,8 +581,8 @@ static VG_REGPARM(3) void trace_store(Addr addr, SizeT size, IRTemp tmp)
 {
 	if (tmp == IRTemp_INVALID)
 		VG_(umsg)("store: invalid tmp\n");
-	if (tmp == IRTemp_CONST || tmp == IRTemp_INVALID)
-		VG_(printf)("S M%08lx,%lu\n", addr, size);
+	else if (tmp == IRTemp_CONST)
+		VG_(printf)("S C M%08lx,%lu\n", addr, size);
 	else
 		VG_(printf)("S T%d M%08lx,%lu\n", tmp, addr, size);
 }
@@ -750,7 +750,7 @@ static VG_REGPARM(3) void trace_put(Int n_op, Int offset, IRTemp tmp)
 {
 	//VG_(printf)(" P %d %d\n", offset, n_guest_instrs_sb);
 	if (n_op == 0) {
-		VG_(printf)("P G%d\n", offset);
+		VG_(printf)("P C G%d\n", offset);
 	} else if (n_op == 1) {
 		VG_(printf)("P T%d G%d\n", tmp, offset);
 	}
