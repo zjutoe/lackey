@@ -165,10 +165,16 @@ function issue_sb(rob)
 	       if ins.ti2 ~=nil then io.write(' ', ins.ti2) end
 	       if ins.ti3 ~=nil then io.write(' ', ins.ti3) end
 	       print('')
-	    elseif ins.tag == 'I' then
-	       print(string.format("%s %s", ins.tag, ins.addr))
-	    else
-	       print(string.format("%s %s %s", ins.tag, ins.addr, ins.tmp))
+	    -- elseif ins.tag == 'I' then
+	    --    print(string.format("%s %s", ins.tag, ins.addr))
+	    elseif ins.tag == 'L' then
+	       print(string.format("L T%s M%s", ins.tmp, ins.addr))
+	    elseif ins.tag == 'S' then
+	       print(string.format("S T%s M%s", ins.tmp, ins.addr))
+	    elseif ins.tag == 'G' then
+	       print(string.format("G T%s G%s", ins.tmp, ins.addr))
+	    elseif ins.tag == 'P' then
+	       print(string.format("P T%s G%s", ins.tmp, ins.addr))
 	    end
 	 end
 	 -- for _, mem_rw in ipairs(v.mem_access) do
@@ -266,9 +272,9 @@ function parse_lackey_log(sb_size, sb_merge)
 	       weight_accu = 0
 	       -- inst[#inst + 1] = {tag="SB", addr=addr}
 	    end
-	 elseif k == 'I ' then	    
-	    local addr, sz = string.match(line:sub(3), "(%x+),(%d+)")
-	    inst[#inst + 1] = {tag="I", addr=addr}
+	 -- elseif k == 'I ' then	    
+	 --    local addr, sz = string.match(line:sub(3), "(%x+),(%d+)")
+	 --    inst[#inst + 1] = {tag="I", addr=addr}
 	 elseif k == 'S ' then
 	    local t, m = string.match(line:sub(3), "(%w+) (%w+)")
 	    local d_addr = tonumber(m:sub(2), 16)

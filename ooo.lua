@@ -312,78 +312,68 @@ function parse_input(sb_size, sb_merge)
 	    sb.addr = tonumber(addr, 16)
 	    sb.core = core
 	    sb.weight = weight
-	    sb.ins = {}
-	    sb.ins_hash = {}
+	    sb.micro = {}
+	    sb.mref = {}
 	    
 	    -- FIXME make them member of sb, i.e. sb.mem_writer,
 	    -- sb.reg_writer
 	    mem_writer = {}
 	    reg_writer = {}
 
-	    -- assume the SB also starts an ins
-	    sb.ins[#sb.ins + 1] = ins
-	    sb.ins_hash[ins.addr] = ins
-
-	    -- ins = {}
-	    -- ins.mref = {}
-	    -- ins.dep = {}
-	    -- ins.addr = tonumber(addr, 16)
-	    -- ins.ops = {}
-	    ins = new_ins(tonumber(addr,16))
-
-	 elseif k == 'I ' then
-	    local addr = line:sub(3)
-
-	    sb.ins[#sb.ins + 1] = ins
-	    sb.ins_hash[ins.addr] = ins
-
-	    -- ins = {}
-	    -- ins.mref = {}
-	    -- ins.dep = {}
-	    -- ins.addr = tonumber(addr, 16)
-	    -- ins.ops = {}
-	    ins = new_ins(tonumber(addr,16))
-
 	 elseif k == 'S ' then
-	    local addr = tonumber(line:sub(3), 16)
-	    ins.mref[#ins.mref + 1] = {flag='S', addr=addr}
-	    mem_writer[addr] = ins.addr
-	    ins.ops[#ins.ops + 1] = {flag='S', addr=line:sub(3)}
+	    local t, m = string.match(line:sub(3), "(%w+) (%w+)")
+	    if t == 'T' then t = nil end
+	    -- local d_addr = tonumber(m:sub(2), 16)
+	    sb.micro[#sb.micro + 1] = {flag='S', i=t, o=m}
+	    sb.mref[#sb.mref + 1] = #sb.micro
+
+	    -- sb.micro.mref[#sb.micro.mref + 1] = {flag='S', addr=d_addr}
+	    -- mem_writer[addr] = ins.addr
+	    -- ins.ops[#ins.ops + 1] = {flag='S', addr=line:sub(3)}
 
 	 elseif k == 'L ' then
-	    local addr = tonumber(line:sub(3), 16)
-	    ins.mref[#ins.mref + 1] = {flag='L', addr=addr}
-	    local dep_addr = mem_writer[addr]
-	    if dep_addr and dep_addr ~= ins.addr then
-	       ins.dep[#ins.dep + 1] = dep_addr
-	    end
-	    ins.ops[#ins.ops + 1] = {flag='L', addr=line:sub(3)}
+	    local t, m = string.match(line:sub(3), "(%w+) (%w+)")
+	    -- local d_addr = tonumber(m:sub(2), 16)
+	    sb.micro[#sb.micro + 1] = {flag='L', i=m, o=t}
+	    sb.mref[#sb.mref + 1] = #sb.micro
+	    
+	    -- local addr = tonumber(line:sub(3), 16)
+	    -- ins.mref[#ins.mref + 1] = {flag='L', addr=addr}
+	    -- local dep_addr = mem_writer[addr]
+	    -- if dep_addr and dep_addr ~= ins.addr then
+	    --    ins.dep[#ins.dep + 1] = dep_addr
+	    -- end
+	    -- ins.ops[#ins.ops + 1] = {flag='L', addr=line:sub(3)}
 
 	 elseif k == 'P ' then
-	    local addr = tonumber(line:sub(3))
-	    -- print("[D] line/addr:", line, addr)
-	    reg_writer[addr] = ins.addr
-	    ins.ops[#ins.ops + 1] = {flag='P', addr=line:sub(3)}
+	    local t, g = string.match(line:sub(3), "(%w+) (%w+)")
+	    if t == 'T' then t = nil end
+	    -- local reg_o = g:sub(2)
+	    sb.micro[#sb.micro + 1] = {flag='P', i=t, o=g}
+
+	    -- local addr = tonumber(line:sub(3))
+	    -- -- print("[D] line/addr:", line, addr)
+	    -- reg_writer[addr] = ins.addr
+	    -- ins.ops[#ins.ops + 1] = {flag='P', addr=line:sub(3)}
 
 	 elseif k == 'G ' then
-	    local addr = tonumber(line:sub(3))
-	    local dep_addr = reg_writer[addr]
-	    if dep_addr and dep_addr ~= ins.addr then
-	       ins.dep[#ins.dep + 1] = dep_addr
-	    end
-	    ins.ops[#ins.ops + 1] = {flag='G', addr=line:sub(3)}
+	    local t, g = string.match(line:sub(3), "(%w+) (%w+)")
+	    -- local reg_o = g:sub(2)
+	    sb.micro[#sb.micro + 1] = {flag='G', i=g, o=t}
+
+	    -- local addr = tonumber(line:sub(3))
+	    -- local dep_addr = reg_writer[addr]
+	    -- if dep_addr and dep_addr ~= ins.addr then
+	    --    ins.dep[#ins.dep + 1] = dep_addr
+	    -- end
+	    -- ins.ops[#ins.ops + 1] = {flag='G', addr=line:sub(3)}
 
 	 elseif line:sub(1,5) == 'ISSUE' then
 	    print(string.format("ISSUE %d", #issue.sb))
 	    for core, blk in ipairs(issue.sb) do
-	       local ins_inorder = {}
-	       for pc, ins in ipairs(blk.ins) do
-		  ins_inorder[pc] = ins
-	       end
-
 	       local ins_ooo = {}
 	       local q = List.new()
-	       for pc, ins in ipairs(blk.ins) do
+	       for pc, ins in ipairs(blk.micro) do
 		  if #ins.mref > 0 then
 		     -- a memory access instruction, try to move it earlier
 		     mark_deps(sb, ins)
@@ -391,7 +381,7 @@ function parse_input(sb_size, sb_merge)
 		  end
 	       end
 
-	       for _, ins in ipairs(blk.ins) do
+	       for _, ins in ipairs(blk.micro) do
 	       	  if not ins.mark then
 	       	     ins_ooo[#ins_ooo + 1] = ins
 	       	  end
