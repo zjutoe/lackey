@@ -333,7 +333,7 @@ function parse_lackey_log(sb_size, sb_merge)
 	    else
 	       print('ERROR: invalid OP')
 	    end
-	    print(line:sub(5), to, ti1, ti2, ti3)
+	    -- print(line:sub(5), to, ti1, ti2, ti3)
 	    inst[#inst + 1] = {tag="OP", to=to, ti1=ti1, ti2=ti2, ti3=ti3}
 	 end
       end
