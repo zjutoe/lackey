@@ -14,6 +14,9 @@ function logd(...)
    -- print(...)
 end
 
+function __FILE__() return debug.getinfo(2,'S').source end
+function __LINE__() return debug.getinfo(2, 'l').currentline end
+
 -- the parameters that affects the parallelism 
 local core_num = 4
 local rob_w = 4
@@ -246,6 +249,11 @@ local sb = {}
 sb.addr = 0
 sb.ins = {}
 sb.ins_hash = {}
+sb.core = 0
+sb.weight = 0
+sb.micro = {}
+sb.mref = {}
+
 
 -- local ins = {}
 -- ins.addr = 0
@@ -302,8 +310,9 @@ function parse_input(sb_size, sb_merge)
       if line:sub(1,2) ~= '==' then
 	 i = i + 1
 	 local k = line:sub(1,2)
-	 
+	 -- print( __LINE__())
 	 if k == 'SB' then
+	    -- print( __LINE__())
 	    issue.sb[#issue.sb + 1] = sb
 
 	    local addr, core, weight = string.match(line:sub(4), "(%x+) (%d) (%d)")
@@ -321,6 +330,7 @@ function parse_input(sb_size, sb_merge)
 	    reg_writer = {}
 
 	 elseif k == 'S ' then
+	    -- print( __LINE__())
 	    local t, m = string.match(line:sub(3), "(%w+) (%w+)")
 	    if t == 'T' then t = nil end
 	    -- local d_addr = tonumber(m:sub(2), 16)
@@ -332,6 +342,7 @@ function parse_input(sb_size, sb_merge)
 	    -- ins.ops[#ins.ops + 1] = {flag='S', addr=line:sub(3)}
 
 	 elseif k == 'L ' then
+	    -- print( __LINE__())
 	    local t, m = string.match(line:sub(3), "(%w+) (%w+)")
 	    -- local d_addr = tonumber(m:sub(2), 16)
 	    sb.micro[#sb.micro + 1] = {flag='L', i=m, o=t}
@@ -346,6 +357,7 @@ function parse_input(sb_size, sb_merge)
 	    -- ins.ops[#ins.ops + 1] = {flag='L', addr=line:sub(3)}
 
 	 elseif k == 'P ' then
+	    -- print( __LINE__())
 	    local t, g = string.match(line:sub(3), "(%w+) (%w+)")
 	    if t == 'T' then t = nil end
 	    -- local reg_o = g:sub(2)
@@ -357,6 +369,7 @@ function parse_input(sb_size, sb_merge)
 	    -- ins.ops[#ins.ops + 1] = {flag='P', addr=line:sub(3)}
 
 	 elseif k == 'G ' then
+	    -- print( __LINE__())
 	    local t, g = string.match(line:sub(3), "(%w+) (%w+)")
 	    -- local reg_o = g:sub(2)
 	    sb.micro[#sb.micro + 1] = {flag='G', i=g, o=t}
@@ -368,8 +381,41 @@ function parse_input(sb_size, sb_merge)
 	    -- end
 	    -- ins.ops[#ins.ops + 1] = {flag='G', addr=line:sub(3)}
 
+	 elseif k == 'OP' then
+	    -- print( __LINE__())
+	    local b, e = string.find(line, 'T%d+')
+	    local d = nil
+	    local s = {}
+	    if b ~= nil then
+	       d = line:sub(b, e)
+	    end
+	    b, e = string.find(line, 'T%d+', e)
+	    while b ~= nil do
+	       s[#s + 1] = line:sub(b, e)
+	       b, e = string.find(line, 'T%d+', e)
+	    end
+	    sb.micro[#sb.micro + 1] = {flag='OP', i=s, o=d}
+
 	 elseif line:sub(1,5) == 'ISSUE' then
+	    -- print( __LINE__())
 	    print(string.format("ISSUE %d", #issue.sb))
+	    
+	    for core, blk in ipairs(issue.sb) do
+	       for pc, micro in ipairs(blk.micro) do
+		  io.write(micro.flag)
+		  if micro.flag == 'OP' then
+		     io.write(' '..micro.o)
+		     for k, v in ipairs(micro.i) do
+			io.write(' '..v)
+		     end
+		     print('')
+		  else
+		     print(string.format(" %s %s", micro.i or 'C', micro.o))
+		  end
+	       end
+	    end
+
+	    --[[
 	    for core, blk in ipairs(issue.sb) do
 	       local ins_ooo = {}
 	       local q = List.new()
@@ -395,6 +441,7 @@ function parse_input(sb_size, sb_merge)
 		  end
 	       end
 	    end			-- loop over issue.sb
+	    --]]
 
 	    issue.sb = {}
 	 end			-- 'ISSUE'
@@ -404,6 +451,9 @@ function parse_input(sb_size, sb_merge)
    -- logd(i)
 end				--  function parse_lackey_log()
 
+-- print( __LINE__())
 rob_w = core_num
+-- print( __LINE__())
 init_rob(rob, rob_d, rob_w)
+-- print( __LINE__())
 parse_input(sb_size, sb_merge)
