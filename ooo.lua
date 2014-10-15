@@ -242,25 +242,36 @@ function set_sb_weight(w)
    sb_weight = w
 end
 
-local issue = {}
-issue.sb = {}
+function new_issue()
+   local issue = {}
+   issue.sb = {}
+   return issue
+end
 
-local sb = {}
-sb.addr = 0
-sb.ins = {}
-sb.ins_hash = {}
-sb.core = 0
-sb.weight = 0
-sb.micro = {}
-sb.mref = {}
+function new_sb(addr, core, weight)
+   local sb = {}
+   sb.addr = addr
+   sb.ins = {}
+   sb.ins_hash = {}
+   sb.core = core
+   sb.weight = weight
+   sb.micro = {}
+   sb.mref = {}
+   sb.writer = {}
+   sb.dep = {}
 
+   return sb
+end
 
--- local ins = {}
--- ins.addr = 0
--- ins.mref = {}
--- ins.dep = {}
--- ins.tag = 0			-- nil
--- ins.ops = {}
+local issue = new_issue()
+local sb = new_sb(0, 0, 0)
+
+local ins = {}
+ins.addr = 0
+ins.mref = {}
+ins.dep = {}
+ins.tag = 0			-- nil
+ins.ops = {}
 
 function new_ins(addr)
    local ins = {}
@@ -303,6 +314,12 @@ function copy_marked_deps(sb, ins_ooo)
    end
 end
 
+function reorder_sb(sb)
+   for i, v in ipairs(sb.mref) do
+      print( v, sb.micro[v].flag )      
+   end
+end
+
 function parse_input(sb_size, sb_merge)
    local i = 0
    local weight_accu = 0
@@ -317,12 +334,7 @@ function parse_input(sb_size, sb_merge)
 
 	    local addr, core, weight = string.match(line:sub(4), "(%x+) (%d) (%d)")
 	    -- print('[D]line/addr', line, tonumber(addr), 16)
-	    sb = {}	    
-	    sb.addr = tonumber(addr, 16)
-	    sb.core = core
-	    sb.weight = weight
-	    sb.micro = {}
-	    sb.mref = {}
+	    sb = new_sb(tonumber(addr, 16), core, weight)
 	    
 	    -- FIXME make them member of sb, i.e. sb.mem_writer,
 	    -- sb.reg_writer
@@ -336,7 +348,9 @@ function parse_input(sb_size, sb_merge)
 	    -- local d_addr = tonumber(m:sub(2), 16)
 	    sb.micro[#sb.micro + 1] = {flag='S', i=t, o=m}
 	    sb.mref[#sb.mref + 1] = #sb.micro
-
+	    sb.writer[m] = #sb.micro
+	    if t ~= nil then sb.dep[#sb.micro] = sb.writer[t] end
+	    
 	    -- sb.micro.mref[#sb.micro.mref + 1] = {flag='S', addr=d_addr}
 	    -- mem_writer[addr] = ins.addr
 	    -- ins.ops[#ins.ops + 1] = {flag='S', addr=line:sub(3)}
@@ -347,6 +361,8 @@ function parse_input(sb_size, sb_merge)
 	    -- local d_addr = tonumber(m:sub(2), 16)
 	    sb.micro[#sb.micro + 1] = {flag='L', i=m, o=t}
 	    sb.mref[#sb.mref + 1] = #sb.micro
+	    if t ~= nil then sb.writer[t] = #sb.micro end
+	    sb.dep[#sb.micro] = sb.writer[m]
 	    
 	    -- local addr = tonumber(line:sub(3), 16)
 	    -- ins.mref[#ins.mref + 1] = {flag='L', addr=addr}
@@ -360,8 +376,9 @@ function parse_input(sb_size, sb_merge)
 	    -- print( __LINE__())
 	    local t, g = string.match(line:sub(3), "(%w+) (%w+)")
 	    if t == 'T' then t = nil end
-	    -- local reg_o = g:sub(2)
 	    sb.micro[#sb.micro + 1] = {flag='P', i=t, o=g}
+	    sb.writer[g] = #sb.micro 
+	    if t ~= nil then sb.dep[#sb.micro] = sb.writer[t] end
 
 	    -- local addr = tonumber(line:sub(3))
 	    -- -- print("[D] line/addr:", line, addr)
@@ -373,6 +390,8 @@ function parse_input(sb_size, sb_merge)
 	    local t, g = string.match(line:sub(3), "(%w+) (%w+)")
 	    -- local reg_o = g:sub(2)
 	    sb.micro[#sb.micro + 1] = {flag='G', i=g, o=t}
+	    sb.writer[t] = #sb.micro
+	    sb.dep[#sb.micro] = sb.writer[g]
 
 	    -- local addr = tonumber(line:sub(3))
 	    -- local dep_addr = reg_writer[addr]
@@ -396,10 +415,25 @@ function parse_input(sb_size, sb_merge)
 	    end
 	    sb.micro[#sb.micro + 1] = {flag='OP', i=s, o=d}
 
+	    if d ~= nil then
+	       sb.writer[d] = #sb.micro
+	    end
+	    if #s > 0 then
+	       local dep = {}
+	       for i, v in ipairs(s) do
+		  dep[#dep + 1] = sb.writer[v]
+	       end
+	       sb.dep[#sb.micro] = dep
+	    end
+
 	 elseif line:sub(1,5) == 'ISSUE' then
 	    -- print( __LINE__())
 	    print(string.format("ISSUE %d", #issue.sb))
-	    
+
+	    for core, blk in ipairs(issue.sb) do
+	       reorder_sb(blk)
+	    end
+	    --[[
 	    for core, blk in ipairs(issue.sb) do
 	       for pc, micro in ipairs(blk.micro) do
 		  io.write(micro.flag)
@@ -410,10 +444,12 @@ function parse_input(sb_size, sb_merge)
 		     end
 		     print('')
 		  else
+		     -- print(string.format(" %s %s %d:%s", micro.i or 'C', micro.o, pc, sb.dep[pc] or ''))
 		     print(string.format(" %s %s", micro.i or 'C', micro.o))
 		  end
 	       end
 	    end
+	    --]]
 
 	    --[[
 	    for core, blk in ipairs(issue.sb) do
