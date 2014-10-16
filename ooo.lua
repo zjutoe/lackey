@@ -317,14 +317,15 @@ end
 
 function reorder_sb(sb)
 
-   for i, v in ipairs(sb) do
+   for i, v in ipairs(sb.micro) do
+      
       if type(v.dep) == 'table' then
 	 io.write(i..' '..v.tag..':')
 	 for _, d in ipairs(v.dep) do
 	    io.write(' '..d)
 	 end
       else
-	 print(i..' '..v.tag .. ':' .. v.dep)
+	 print(i..' '..v.tag .. ':' .. (v.dep or ''))
       end
    end
 
@@ -468,7 +469,7 @@ function parse_input(sb_size, sb_merge)
 	    for core, blk in ipairs(issue.sb) do
 	       reorder_sb(blk)
 	       for i, v in ipairs(blk.ooo) do
-		  print(i, v)
+		  print('ooo', i, v)
 	       end
 	    end
 	    --[[
