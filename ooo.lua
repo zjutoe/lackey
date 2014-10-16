@@ -315,20 +315,38 @@ function copy_marked_deps(sb, ins_ooo)
    end
 end
 
-function reorder_sb(sb)
+function log_sb(sb)
+   print('SB', sb.addr)
 
    for i, v in ipairs(sb.micro) do
-      
-      if type(v.dep) == 'table' then
-	 io.write(i..' '..v.tag..':')
-	 for _, d in ipairs(v.dep) do
-	    io.write(' '..d)
+      io.write(i,': ')
+      if type(v.i) == 'table' then
+	 io.write(v.flag..'\t' .. v.o .. '\t')
+	 for _, t in ipairs(v.i) do
+	    io.write(' '..t)
 	 end
       else
-	 print(i..' '..v.tag .. ':' .. (v.dep or ''))
+	 io.write(v.flag .. '\t' .. v.o .. '\t' .. (v.i or ' '))
       end
+      ---[[
+      if sb.dep[i] then
+	 io.write(':\t')
+	 if type(sb.dep[i]) == 'table'	then
+	    for _, d in ipairs(sb.dep[i]) do
+	       io.write(' '..d)
+	    end
+	 else
+	    io.write(' '..sb.dep[i])
+	 end
+      end
+      --]]
+
+      io.write('\n')
    end
 
+end
+
+function reorder_sb(sb)
    local mark = {}
 
    -- TODO: the mrefs are not re-ordered yet. Further optimization may
@@ -352,7 +370,7 @@ function reorder_sb(sb)
       while List.size(stack) > 0 do
 	 sb.ooo[#sb.ooo + 1] = List.popright(stack)
       end
-   end
+   end   
 
 end
 
@@ -467,9 +485,10 @@ function parse_input(sb_size, sb_merge)
 	    print(string.format("ISSUE %d", #issue.sb))
 
 	    for core, blk in ipairs(issue.sb) do
+	       log_sb(blk)
 	       reorder_sb(blk)
 	       for i, v in ipairs(blk.ooo) do
-		  print('ooo', i, v)
+	       	  print('ooo', i, v)
 	       end
 	    end
 	    --[[
