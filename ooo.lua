@@ -256,6 +256,7 @@ function new_sb(addr, core, weight)
    sb.core = core
    sb.weight = weight
    sb.micro = {}
+   sb.ooo = {}			-- the reorder of the micro
    sb.mref = {}
    sb.writer = {}
    sb.dep = {}
@@ -315,9 +316,43 @@ function copy_marked_deps(sb, ins_ooo)
 end
 
 function reorder_sb(sb)
-   for i, v in ipairs(sb.mref) do
-      print( v, sb.micro[v].flag )      
+
+   for i, v in ipairs(sb) do
+      if type(v.dep) == 'table' then
+	 io.write(i..' '..v.tag..':')
+	 for _, d in ipairs(v.dep) do
+	    io.write(' '..d)
+	 end
+      else
+	 print(i..' '..v.tag .. ':' .. v.dep)
+      end
    end
+
+   local mark = {}
+
+   -- TODO: the mrefs are not re-ordered yet. Further optimization may
+   -- help.
+
+   for i, v in ipairs(sb.mref) do
+      -- print( v, sb.micro[v].flag )      
+
+      local stack = List.new()
+      List.pushright(stack, v)
+      mark[v] = 1
+
+      local d = sb.dep[v]
+      while d ~= nil do
+	 if not mark[d] then
+	    List.pushright(stack, d)
+	    mark[d] = 1
+	 end
+	 d = sb.dep[d]
+      end
+      while List.size(stack) > 0 do
+	 sb.ooo[#sb.ooo + 1] = List.popright(stack)
+      end
+   end
+
 end
 
 function parse_input(sb_size, sb_merge)
@@ -432,6 +467,9 @@ function parse_input(sb_size, sb_merge)
 
 	    for core, blk in ipairs(issue.sb) do
 	       reorder_sb(blk)
+	       for i, v in ipairs(blk.ooo) do
+		  print(i, v)
+	       end
 	    end
 	    --[[
 	    for core, blk in ipairs(issue.sb) do
