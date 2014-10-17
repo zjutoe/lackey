@@ -267,54 +267,6 @@ end
 local issue = new_issue()
 local sb = new_sb(0, 0, 0)
 
-local ins = {}
-ins.addr = 0
-ins.mref = {}
-ins.dep = {}
-ins.tag = 0			-- nil
-ins.ops = {}
-
-function new_ins(addr)
-   local ins = {}
-   ins.mref = {}
-   ins.dep = {}
-   ins.addr = addr
-   ins.ops = {}
-   return ins
-end
-
-local ins = new_ins(0)
-
--- recursively traverse all the dependees of ins, and mark them (if
--- not previously marked yet)
-function mark_deps(sb, ins)
-   local q = List.new()
-   for _, d in ipairs(ins.dep) do
-      List.pushright(q, d)
-   end
-
-   while List.size(q) > 0 do
-      local d = List.popleft(q)
-      local dep_ins = sb.ins_hash[d]
-      if dep_ins and not dep_ins.mark then -- dep_ins.mark == nil
-	 dep_ins.mark = 1
-
-	 for _, dep in ipairs(dep_ins.dep) do --  recursion
-	    List.pushright(q, dep)
-	 end
-      end
-   end
-end
-
-function copy_marked_deps(sb, ins_ooo)
-   for _, ins in ipairs(sb.ins) do
-      if ins.mark and ins.mark == 1 then
-	 ins_ooo[#ins_ooo + 1] = ins
-	 ins.mark = 0
-      end
-   end
-end
-
 function log_sb(sb)
    print('SB', sb.addr, #sb.micro)
 
@@ -381,10 +333,6 @@ function reorder_sb(sb)
    -- help.
 
    for i, v in ipairs(sb.mref) do
-      -- print( v, sb.micro[v].flag )      
-
-      -- local stack = List.new()
-      -- List.pushright(stack, v)
       mark[v] = 1
       local stack = mark_dep(sb, v, mark)
       while List.size(stack) > 0 do
