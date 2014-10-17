@@ -267,11 +267,9 @@ end
 local issue = new_issue()
 local sb = new_sb(0, 0, 0)
 
-function log_micro(sb, pc, show_dep, show_pc)
+function log_micro(sb, pc, show_dep)
    show_dep = show_dep or false
    show_pc = show_pc or false
-
-   if show_pc then io.write(i,': ') end
 
    local micro = sb.micro[pc]
    io.write(micro.flag..' ' .. micro.o)
@@ -283,7 +281,6 @@ function log_micro(sb, pc, show_dep, show_pc)
       io.write(' ' .. (micro.i or ''))
    end   
 
-   ---[[
    if show_dep and sb.dep[i] then
       io.write(':\t')
       if type(sb.dep[i]) == 'table'	then
@@ -294,7 +291,6 @@ function log_micro(sb, pc, show_dep, show_pc)
 	 io.write(' '..sb.dep[i])
       end
    end
-   --]]
 
    io.write('\n')
 end
@@ -302,15 +298,19 @@ end
 function log_sb_ooo(sb)
    print(string.format("SB %s %d", sb.core, #sb.micro))
    for i, v in ipairs(sb.ooo) do
-      log_micro(sb, v)
+      local mic = sb.micro[v]
+      if mic.flag == "S" or mic.flag == "L" then
+	 io.write(i..': ')
+	 log_micro(sb, v)
+      end
    end
 end
 
-function log_sb(sb, show_dep, show_pc)
+function log_sb(sb, show_dep)
    print(string.format("SB %s", sb.core, #sb.micro))
 
    for i, v in ipairs(sb.micro) do
-      log_micro(sb, i, show_dep, show_pc)
+      log_micro(sb, i, show_dep)
    end
 
 end
