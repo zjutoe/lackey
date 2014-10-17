@@ -316,7 +316,7 @@ function copy_marked_deps(sb, ins_ooo)
 end
 
 function log_sb(sb)
-   print('SB', sb.addr)
+   print('SB', sb.addr, #sb.micro)
 
    for i, v in ipairs(sb.micro) do
       io.write(i,': ')
@@ -346,6 +346,34 @@ function log_sb(sb)
 
 end
 
+function mark_dep(sb, pc, mark)
+
+      local d = sb.dep[pc]
+      local q = List.new()
+      local stack = List.new()
+
+      while d ~= nil do
+	 if type(d) == 'table' then
+	    for _, d1 in ipairs(d) do
+	       if not mark[d1] then
+		  mark[d1] = 1
+		  List.pushright(stack, d1)
+		  if sb.dep[d1] then List.pushright(q, sb.dep[d1]) end
+	       end
+	    end
+	 else
+	    if not mark[d] then
+	       mark[d] = 1
+	       List.pushright(stack, d)
+	       if sb.dep[d] then List.pushright(q, sb.dep[d]) end
+	    end
+	 end
+	 d = List.popleft(q)
+      end
+
+      return stack
+end
+
 function reorder_sb(sb)
    local mark = {}
 
@@ -355,23 +383,20 @@ function reorder_sb(sb)
    for i, v in ipairs(sb.mref) do
       -- print( v, sb.micro[v].flag )      
 
-      local stack = List.new()
-      List.pushright(stack, v)
+      -- local stack = List.new()
+      -- List.pushright(stack, v)
       mark[v] = 1
-
-      local d = sb.dep[v]
-      while d ~= nil do
-	 if not mark[d] then
-	    List.pushright(stack, d)
-	    mark[d] = 1
-	 end
-	 d = sb.dep[d]
-      end
+      local stack = mark_dep(sb, v, mark)
       while List.size(stack) > 0 do
 	 sb.ooo[#sb.ooo + 1] = List.popright(stack)
       end
-   end   
+      sb.ooo[#sb.ooo + 1] = v
+   end
 
+   -- collect the rest (not marked)
+   for i, v in ipairs(sb.micro) do
+      if not mark[i] then sb.ooo[#sb.ooo + 1] = i end
+   end
 end
 
 function parse_input(sb_size, sb_merge)
@@ -487,6 +512,7 @@ function parse_input(sb_size, sb_merge)
 	    for core, blk in ipairs(issue.sb) do
 	       log_sb(blk)
 	       reorder_sb(blk)
+	       print('OOO', #blk.ooo)
 	       for i, v in ipairs(blk.ooo) do
 	       	  print('ooo', i, v)
 	       end
