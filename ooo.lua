@@ -267,33 +267,50 @@ end
 local issue = new_issue()
 local sb = new_sb(0, 0, 0)
 
-function log_sb(sb)
-   print('SB', sb.addr, #sb.micro)
+function log_micro(sb, pc, show_dep, show_pc)
+   show_dep = show_dep or false
+   show_pc = show_pc or false
 
-   for i, v in ipairs(sb.micro) do
-      io.write(i,': ')
-      if type(v.i) == 'table' then
-	 io.write(v.flag..'\t' .. v.o .. '\t')
-	 for _, t in ipairs(v.i) do
-	    io.write(' '..t)
+   if show_pc then io.write(i,': ') end
+
+   local micro = sb.micro[pc]
+   io.write(micro.flag..' ' .. micro.o)
+   if type(micro.i) == 'table' then
+      for _, t in ipairs(micro.i) do
+	 io.write(' '..t)
+      end
+   else
+      io.write(' ' .. (micro.i or ''))
+   end   
+
+   ---[[
+   if show_dep and sb.dep[i] then
+      io.write(':\t')
+      if type(sb.dep[i]) == 'table'	then
+	 for _, d in ipairs(sb.dep[i]) do
+	    io.write(' '..d)
 	 end
       else
-	 io.write(v.flag .. '\t' .. v.o .. '\t' .. (v.i or ' '))
+	 io.write(' '..sb.dep[i])
       end
-      ---[[
-      if sb.dep[i] then
-	 io.write(':\t')
-	 if type(sb.dep[i]) == 'table'	then
-	    for _, d in ipairs(sb.dep[i]) do
-	       io.write(' '..d)
-	    end
-	 else
-	    io.write(' '..sb.dep[i])
-	 end
-      end
-      --]]
+   end
+   --]]
 
-      io.write('\n')
+   io.write('\n')
+end
+
+function log_sb_ooo(sb)
+   print(string.format("SB %s %d", sb.core, #sb.micro))
+   for i, v in ipairs(sb.ooo) do
+      log_micro(sb, v)
+   end
+end
+
+function log_sb(sb, show_dep, show_pc)
+   print(string.format("SB %s", sb.core, #sb.micro))
+
+   for i, v in ipairs(sb.micro) do
+      log_micro(sb, i, show_dep, show_pc)
    end
 
 end
@@ -458,58 +475,10 @@ function parse_input(sb_size, sb_merge)
 	    print(string.format("ISSUE %d", #issue.sb))
 
 	    for core, blk in ipairs(issue.sb) do
-	       log_sb(blk)
+	       -- log_sb(blk)
 	       reorder_sb(blk)
-	       print('OOO', #blk.ooo)
-	       for i, v in ipairs(blk.ooo) do
-	       	  print('ooo', i, v)
-	       end
+	       log_sb_ooo(blk)
 	    end
-	    --[[
-	    for core, blk in ipairs(issue.sb) do
-	       for pc, micro in ipairs(blk.micro) do
-		  io.write(micro.flag)
-		  if micro.flag == 'OP' then
-		     io.write(' '..micro.o)
-		     for k, v in ipairs(micro.i) do
-			io.write(' '..v)
-		     end
-		     print('')
-		  else
-		     -- print(string.format(" %s %s %d:%s", micro.i or 'C', micro.o, pc, sb.dep[pc] or ''))
-		     print(string.format(" %s %s", micro.i or 'C', micro.o))
-		  end
-	       end
-	    end
-	    --]]
-
-	    --[[
-	    for core, blk in ipairs(issue.sb) do
-	       local ins_ooo = {}
-	       local q = List.new()
-	       for pc, ins in ipairs(blk.micro) do
-		  if #ins.mref > 0 then
-		     -- a memory access instruction, try to move it earlier
-		     mark_deps(sb, ins)
-		     copy_marked_deps(sb, ins_ooo)
-		  end
-	       end
-
-	       for _, ins in ipairs(blk.micro) do
-	       	  if not ins.mark then
-	       	     ins_ooo[#ins_ooo + 1] = ins
-	       	  end
-	       end
-
-	       print(string.format("SB %x %s %s", sb.addr, sb.core, sb.weight))
-	       for _, ins in ipairs(ins_ooo) do		  
-		  print(string.format("I %08x", ins.addr))
-		  for _, op in ipairs(ins.ops) do
-		     print(string.format("%s %s", op.flag, op.addr))
-		  end
-	       end
-	    end			-- loop over issue.sb
-	    --]]
 
 	    issue.sb = {}
 	 end			-- 'ISSUE'
