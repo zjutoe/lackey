@@ -298,10 +298,13 @@ end
 function log_sb_ooo(sb)
    print(string.format("SB %s %d", sb.core, #sb.micro))
    for i, v in ipairs(sb.ooo) do
+      --io.write(i..': ')
       local mic = sb.micro[v]
-      if mic.flag == "S" or mic.flag == "L" then
-	 io.write(i..': ')
-	 log_micro(sb, v)
+      -- log_micro(sb, v)
+      if mic.flag == "S" then	 
+	 print(string.format("%d: %s %s", i, 'S', mic.o:sub(2)))
+      elseif mic.flag == "L" then
+	 print(string.format("%d: %s %s", i, 'L', mic.i:sub(2)))
       end
    end
 end
