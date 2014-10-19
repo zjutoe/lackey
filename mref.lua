@@ -31,7 +31,7 @@ d4lua.do_cache_init(4)
 
 local r = ffi.new("d4memref")
 
-local miss_delay = 1
+local miss_delay = 4
 
 function exe_blocks(core_num, rob_exe_log, miss_log)
 
@@ -66,8 +66,8 @@ function exe_blocks(core_num, rob_exe_log, miss_log)
 	    -- summarize the previous SB 1st
 	    local c = core[tonumber(current_core)]
 	    c.icount = c.icount + icount_sb
-	    c.delay_count = c.delay_count + misscnt_sb * miss_delay
-	    c.clk_pend = c.clk_pend + icount_sb + misscnt_sb * miss_delay
+	    c.delay_count = c.delay_count  + misscnt_sb * miss_delay
+	    c.clk_pend = c.clk_pend + icount_sb  + misscnt_sb * miss_delay
 
 	    -- 
 	    current_core, _icount = string.match(line:sub(4), "(%d+) (%d+)")
@@ -79,29 +79,16 @@ function exe_blocks(core_num, rob_exe_log, miss_log)
 	    r.address = tonumber(addr, 16)
 	    r.size = 4
 
-	    -- elseif line:sub(1,3) == "MEM" then
-	    --    accesstype, daddr = string.match(line:sub(5), "(%d) (%x+)")
-	    --    r.accesstype = tonumber(accesstype)
-	    --    r.address = tonumber(daddr, 16)
-	    --    r.size = 4
-	    
 	    local c = core[tonumber(current_core)]
 	    
 	    local miss = d4lua.do_cache_ref(tonumber(current_core), r)
 	    
 	    -- encounter a miss 
-	    if miss > 0 then
+	    if miss > 0 and tonumber(pc) > icount_sb - miss_delay then
+	       print('MISS:', pc, icount_sb, miss)
 	       misscnt_sb = misscnt_sb + miss
 	    end
 
-	    -- elseif miss_log and #miss_log > 0 then
-	    --    -- now it is a memory reference, let's check the miss log
-	    --    -- and see how much latency it causes
-	    
-	    --    local mlog = miss_log[tonumber(current_core)]
-	    --    local miss_record = mlog:read("*line")
-	    --    if not miss_record then break end
-	    --    misscnt_sb = misscnt_sb + tonumber(miss_record:sub(6))
 	 end
       end
       
