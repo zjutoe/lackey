@@ -265,7 +265,7 @@ function new_sb(addr, core, weight)
 end
 
 local issue = new_issue()
-local sb = new_sb(0, 0, 0)
+local sb = new_sb('0', '1', 0)
 
 function log_micro(sb, pc, show_dep)
    show_dep = show_dep or false
@@ -296,7 +296,7 @@ function log_micro(sb, pc, show_dep)
 end
 
 function log_sb_ooo(sb)
-   print(string.format("SB %s %d", sb.core, #sb.micro))
+   print(string.format("SB %s %d %s", sb.core, #sb.micro, sb.addr))
    for i, v in ipairs(sb.ooo) do
       --io.write(i..': ')
       local mic = sb.micro[v]
@@ -377,11 +377,13 @@ function parse_input(sb_size, sb_merge)
 	 -- print( __LINE__())
 	 if k == 'SB' then
 	    -- print( __LINE__())
-	    issue.sb[#issue.sb + 1] = sb
+	    if sb then
+	       issue.sb[#issue.sb + 1] = sb
+	    end
 
 	    local addr, core, weight = string.match(line:sub(4), "(%x+) (%d) (%d)")
 	    -- print('[D]line/addr', line, tonumber(addr), 16)
-	    sb = new_sb(tonumber(addr, 16), core, weight)
+	    sb = new_sb(addr, core, weight)
 	    
 	    -- FIXME make them member of sb, i.e. sb.mem_writer,
 	    -- sb.reg_writer
@@ -474,7 +476,9 @@ function parse_input(sb_size, sb_merge)
 	    end
 
 	 elseif line:sub(1,5) == 'ISSUE' then
-	    -- print( __LINE__())
+	    issue.sb[#issue.sb + 1] = sb
+	    sb = nil		-- TODO: end_sb()
+	    -- sb = new_sb(addr, core, weight)
 	    print(string.format("ISSUE %d", #issue.sb))
 
 	    for core, blk in ipairs(issue.sb) do
@@ -483,7 +487,8 @@ function parse_input(sb_size, sb_merge)
 	       log_sb_ooo(blk)
 	    end
 
-	    issue.sb = {}
+	    -- issue.sb = {}
+	    issue = new_issue()
 	 end			-- 'ISSUE'
       end			-- ~= '=='
    end
