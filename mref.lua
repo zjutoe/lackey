@@ -33,7 +33,7 @@ local r = ffi.new("d4memref")
 
 local miss_delay = 4
 
-function exe_blocks(core_num, rob_exe_log, miss_log)
+function exe_blocks(core_num) -- , rob_exe_log, miss_log)
 
    local clkcount = 0
    local addr, current_core = 0, 1
@@ -41,14 +41,13 @@ function exe_blocks(core_num, rob_exe_log, miss_log)
    local accesstype, daddr, dsize
    local misscnt_sb = 0
 
-   -- #core = #miss_log
    local core = {}
    for i=1, core_num do
       core[i] = {icount = 0, delay_count = 0, clk_pend = 0, ref_count = 0}
       d4lua.do_cache_init(i-1);
    end
 
-   for line in rob_exe_log:lines() do
+   for line in io.lines() do
       if line:sub(1,2) ~= "#" then	 
 	 if line:sub(1,5) == "ISSUE" then
 	    -- a line of blocks get issued
@@ -92,7 +91,7 @@ function exe_blocks(core_num, rob_exe_log, miss_log)
 	 end
       end
       
-   end				-- for exe in rob_exe_log.lines()
+   end				-- for line in io.lines()
 
    local icount, delaycount = 0, 0
 
@@ -118,6 +117,7 @@ function open_traces(sched, ...)
 end
 
 -- clk_add_delay(4, open_traces("./test/date_rob.log", "./test/cpu1.dinero", "./test/cpu2.dinero", "./test/cpu3.dinero", "./test/cpu4.dinero"))
-exe_blocks(4, open_traces("./date.ooo.log"))
+-- exe_blocks(4, open_traces("./date.ooo.log"))
 -- exe_blocks(4, open_traces(arg[1], arg[2], arg[3], arg[4], arg[5]))
 
+exe_blocks(4)

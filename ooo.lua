@@ -297,6 +297,7 @@ end
 
 function log_sb_ooo(sb)
    print(string.format("SB %s %d %s", sb.core, #sb.micro, sb.addr))
+
    for i, v in ipairs(sb.ooo) do
       --io.write(i..': ')
       local mic = sb.micro[v]
