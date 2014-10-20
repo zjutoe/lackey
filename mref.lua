@@ -69,11 +69,12 @@ function exe_blocks(core_num) -- , rob_exe_log, miss_log)
 	    c.clk_pend = c.clk_pend + icount_sb  + misscnt_sb * miss_delay
 
 	    -- 
-	    current_core, _icount = string.match(line:sub(4), "(%d+) (%d+)")
+	    _, current_core, _icount = string.match(line:sub(4), "(%x+) (%d+) (%d+)")
 	    icount_sb = tonumber(_icount)
 
 	 else
-	    local pc, atype, reg, addr = string.match(line, "(%d+): (%a) (%w+) (%w+)")
+	    local pc, atype, reg, addr = string.match(line, "(%d+): (%a+) (%w+) (%w+)")
+
 	    r.accesstype = atype=="L" and 0 or 1 -- L=0, S=1
 	    r.address = tonumber(addr:sub(2), 16)
 	    r.size = 4

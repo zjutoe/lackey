@@ -296,7 +296,7 @@ function log_micro(sb, pc, show_dep)
 end
 
 function log_sb_ooo(sb)
-   print(string.format("SB %s %d %s", sb.core, #sb.micro, sb.addr))
+   print(string.format("SB %s %d %s", sb.addr, sb.core, #sb.micro))
 
    for i, v in ipairs(sb.ooo) do
       --io.write(i..': ')
