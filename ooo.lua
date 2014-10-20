@@ -303,9 +303,9 @@ function log_sb_ooo(sb)
       local mic = sb.micro[v]
       -- log_micro(sb, v)
       if mic.flag == "S" then	 
-	 print(string.format("%d: %s %s", i, 'S', mic.o:sub(2)))
+	 print(string.format("%d: %s %s %s", i, 'S', mic.i or 'T', mic.o))
       elseif mic.flag == "L" then
-	 print(string.format("%d: %s %s", i, 'L', mic.i:sub(2)))
+	 print(string.format("%d: %s %s %s", i, 'L', mic.o or 'T', mic.i))
       end
    end
 end
