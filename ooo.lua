@@ -374,9 +374,8 @@ function parse_input(sb_size, sb_merge)
    for line in io.lines() do
       if line:sub(1,2) ~= '==' then
 	 i = i + 1
-	 local k = line:sub(1,2)
-	 -- print( __LINE__())
-	 if k == 'SB' then
+
+	 if line:sub(1,2) == 'SB' then
 	    -- print( __LINE__())
 	    if sb then
 	       issue.sb[#issue.sb + 1] = sb
@@ -390,91 +389,6 @@ function parse_input(sb_size, sb_merge)
 	    -- sb.reg_writer
 	    mem_writer = {}
 	    reg_writer = {}
-
-	 elseif k == 'S ' then
-	    -- print( __LINE__())
-	    local t, m = string.match(line:sub(3), "(%w+) (%w+)")
-	    if t == 'T' then t = nil end
-	    -- local d_addr = tonumber(m:sub(2), 16)
-	    sb.micro[#sb.micro + 1] = {flag='S', i=t, o=m}
-	    sb.mref[#sb.mref + 1] = #sb.micro
-	    sb.writer[m] = #sb.micro
-	    if t ~= nil then sb.dep[#sb.micro] = sb.writer[t] end
-	    
-	    -- sb.micro.mref[#sb.micro.mref + 1] = {flag='S', addr=d_addr}
-	    -- mem_writer[addr] = ins.addr
-	    -- ins.ops[#ins.ops + 1] = {flag='S', addr=line:sub(3)}
-
-	 elseif k == 'L ' then
-	    -- print( __LINE__())
-	    local t, m = string.match(line:sub(3), "(%w+) (%w+)")
-	    -- local d_addr = tonumber(m:sub(2), 16)
-	    sb.micro[#sb.micro + 1] = {flag='L', i=m, o=t}
-	    sb.mref[#sb.mref + 1] = #sb.micro
-	    if t ~= nil then sb.writer[t] = #sb.micro end
-	    sb.dep[#sb.micro] = sb.writer[m]
-	    
-	    -- local addr = tonumber(line:sub(3), 16)
-	    -- ins.mref[#ins.mref + 1] = {flag='L', addr=addr}
-	    -- local dep_addr = mem_writer[addr]
-	    -- if dep_addr and dep_addr ~= ins.addr then
-	    --    ins.dep[#ins.dep + 1] = dep_addr
-	    -- end
-	    -- ins.ops[#ins.ops + 1] = {flag='L', addr=line:sub(3)}
-
-	 elseif k == 'P ' then
-	    -- print( __LINE__())
-	    local t, g = string.match(line:sub(3), "(%w+) (%w+)")
-	    if t == 'T' then t = nil end
-	    sb.micro[#sb.micro + 1] = {flag='P', i=t, o=g}
-	    sb.writer[g] = #sb.micro 
-	    if t ~= nil then sb.dep[#sb.micro] = sb.writer[t] end
-
-	    -- local addr = tonumber(line:sub(3))
-	    -- -- print("[D] line/addr:", line, addr)
-	    -- reg_writer[addr] = ins.addr
-	    -- ins.ops[#ins.ops + 1] = {flag='P', addr=line:sub(3)}
-
-	 elseif k == 'G ' then
-	    -- print( __LINE__())
-	    local t, g = string.match(line:sub(3), "(%w+) (%w+)")
-	    -- local reg_o = g:sub(2)
-	    sb.micro[#sb.micro + 1] = {flag='G', i=g, o=t}
-	    sb.writer[t] = #sb.micro
-	    sb.dep[#sb.micro] = sb.writer[g]
-
-	    -- local addr = tonumber(line:sub(3))
-	    -- local dep_addr = reg_writer[addr]
-	    -- if dep_addr and dep_addr ~= ins.addr then
-	    --    ins.dep[#ins.dep + 1] = dep_addr
-	    -- end
-	    -- ins.ops[#ins.ops + 1] = {flag='G', addr=line:sub(3)}
-
-	 elseif k == 'OP' then
-	    -- print( __LINE__())
-	    local b, e = string.find(line, 'T%d+')
-	    local d = nil
-	    local s = {}
-	    if b ~= nil then
-	       d = line:sub(b, e)
-	    end
-	    b, e = string.find(line, 'T%d+', e)
-	    while b ~= nil do
-	       s[#s + 1] = line:sub(b, e)
-	       b, e = string.find(line, 'T%d+', e)
-	    end
-	    sb.micro[#sb.micro + 1] = {flag='OP', i=s, o=d}
-
-	    if d ~= nil then
-	       sb.writer[d] = #sb.micro
-	    end
-	    if #s > 0 then
-	       local dep = {}
-	       for i, v in ipairs(s) do
-		  dep[#dep + 1] = sb.writer[v]
-	       end
-	       sb.dep[#sb.micro] = dep
-	    end
 
 	 elseif line:sub(1,5) == 'ISSUE' then
 	    issue.sb[#issue.sb + 1] = sb
@@ -490,9 +404,101 @@ function parse_input(sb_size, sb_merge)
 
 	    -- issue.sb = {}
 	    issue = new_issue()
-	 end			-- 'ISSUE'
+
+	 else			-- not SB nor ISSUE
+
+	    local pc, k, t, gmt = string.match(line, "(%d+): (%a) (%w+) (%w+)")
+	    -- eprint (pc, k, t, gmt)
+
+	    if k == 'S' then
+	       -- print( __LINE__())
+	       local m = gmt -- local t, m = string.match(line:sub(3), "(%w+) (%w+)")
+	       if t == 'T' then t = nil end
+	       -- local d_addr = tonumber(m:sub(2), 16)
+	       sb.micro[#sb.micro + 1] = {flag='S', i=t, o=m}
+	       sb.mref[#sb.mref + 1] = #sb.micro
+	       sb.writer[m] = #sb.micro
+	       if t ~= nil then sb.dep[#sb.micro] = sb.writer[t] end
+	       
+	       -- sb.micro.mref[#sb.micro.mref + 1] = {flag='S', addr=d_addr}
+	       -- mem_writer[addr] = ins.addr
+	       -- ins.ops[#ins.ops + 1] = {flag='S', addr=line:sub(3)}
+
+	    elseif k == 'L' then
+	       -- print( __LINE__())
+	       local m = gmt -- local t, m = string.match(line:sub(3), "(%w+) (%w+)")
+	       -- local d_addr = tonumber(m:sub(2), 16)
+	       sb.micro[#sb.micro + 1] = {flag='L', i=m, o=t}
+	       sb.mref[#sb.mref + 1] = #sb.micro
+	       if t ~= nil then sb.writer[t] = #sb.micro end
+	       sb.dep[#sb.micro] = sb.writer[m]
+	       
+	       -- local addr = tonumber(line:sub(3), 16)
+	       -- ins.mref[#ins.mref + 1] = {flag='L', addr=addr}
+	       -- local dep_addr = mem_writer[addr]
+	       -- if dep_addr and dep_addr ~= ins.addr then
+	       --    ins.dep[#ins.dep + 1] = dep_addr
+	       -- end
+	       -- ins.ops[#ins.ops + 1] = {flag='L', addr=line:sub(3)}
+
+	    elseif k == 'P' then
+	       -- print( __LINE__())
+	       local g = gmt -- local t, g = string.match(line:sub(3), "(%w+) (%w+)")
+	       if t == 'T' then t = nil end
+	       sb.micro[#sb.micro + 1] = {flag='P', i=t, o=g}
+	       sb.writer[g] = #sb.micro 
+	       if t ~= nil then sb.dep[#sb.micro] = sb.writer[t] end
+
+	       -- local addr = tonumber(line:sub(3))
+	       -- -- print("[D] line/addr:", line, addr)
+	       -- reg_writer[addr] = ins.addr
+	       -- ins.ops[#ins.ops + 1] = {flag='P', addr=line:sub(3)}
+
+	    elseif k == 'G' then
+	       -- print( __LINE__())
+	       local g = gmt -- local t, g = string.match(line:sub(3), "(%w+) (%w+)")
+	       -- local reg_o = g:sub(2)
+	       sb.micro[#sb.micro + 1] = {flag='G', i=g, o=t}
+	       sb.writer[t] = #sb.micro
+	       sb.dep[#sb.micro] = sb.writer[g]
+
+	       -- local addr = tonumber(line:sub(3))
+	       -- local dep_addr = reg_writer[addr]
+	       -- if dep_addr and dep_addr ~= ins.addr then
+	       --    ins.dep[#ins.dep + 1] = dep_addr
+	       -- end
+	       -- ins.ops[#ins.ops + 1] = {flag='G', addr=line:sub(3)}
+
+	    elseif k == 'OP' then
+	       -- print( __LINE__())
+	       local b, e = string.find(line, 'T%d+')
+	       local d = nil
+	       local s = {}
+	       if b ~= nil then
+		  d = line:sub(b, e)
+	       end
+	       b, e = string.find(line, 'T%d+', e)
+	       while b ~= nil do
+		  s[#s + 1] = line:sub(b, e)
+		  b, e = string.find(line, 'T%d+', e)
+	       end
+	       sb.micro[#sb.micro + 1] = {flag='OP', i=s, o=d}
+
+	       if d ~= nil then
+		  sb.writer[d] = #sb.micro
+	       end
+	       if #s > 0 then
+		  local dep = {}
+		  for i, v in ipairs(s) do
+		     dep[#dep + 1] = sb.writer[v]
+		  end
+		  sb.dep[#sb.micro] = dep
+	       end
+	    end			-- k == 'OP'
+	 end			-- not SB nor ISSUE
       end			-- ~= '=='
-   end
+   end				-- for ... do
+
    -- TODO add a switch verbose or terse
    -- logd(i)
 end				--  function parse_lackey_log()
