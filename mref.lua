@@ -72,10 +72,10 @@ function exe_blocks(core_num) -- , rob_exe_log, miss_log)
 	    current_core, _icount = string.match(line:sub(4), "(%d+) (%d+)")
 	    icount_sb = tonumber(_icount)
 
-	 else			-- mem ref, S or L
-	    local pc, atype, addr = string.match(line, "(%d+): (%a) (%x+)")
+	 else
+	    local pc, atype, reg, addr = string.match(line, "(%d+): (%a) (%w+) (%w+)")
 	    r.accesstype = atype=="L" and 0 or 1 -- L=0, S=1
-	    r.address = tonumber(addr, 16)
+	    r.address = tonumber(addr:sub(2), 16)
 	    r.size = 4
 
 	    local c = core[tonumber(current_core)]

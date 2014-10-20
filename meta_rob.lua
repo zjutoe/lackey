@@ -158,7 +158,8 @@ function issue_sb(rob)
 	 print(string.format('SB %s %d %d', v.addr, cid, v.w))
 	 cid = cid + 1
 
-	 for _, ins in ipairs(v.inst) do
+	 for pc, ins in ipairs(v.inst) do
+	    io.write(pc..': ')
 	    if ins.tag == 'OP' then
 	       io.write('OP ', ins.to)
 	       if ins.ti1 ~=nil then io.write(' ', ins.ti1) end
