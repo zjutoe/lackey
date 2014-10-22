@@ -9,6 +9,7 @@
 
 
 local List = require "list"
+require "pepperfish"
 
 function logd(...)
    -- print(...)
@@ -371,6 +372,10 @@ end
 function parse_input(sb_size, sb_merge)
    local i = 0
    local weight_accu = 0
+
+   profiler = newProfiler()
+   profiler:start()
+
    for line in io.lines() do
       if line:sub(1,2) ~= '==' then
 	 i = i + 1
@@ -501,6 +506,13 @@ function parse_input(sb_size, sb_merge)
 
    -- TODO add a switch verbose or terse
    -- logd(i)
+
+   profiler:stop()
+
+   local outfile = io.open( "profile.txt", "w+" )
+   profiler:report( outfile )
+   outfile:close()
+
 end				--  function parse_lackey_log()
 
 -- print( __LINE__())

@@ -85,7 +85,7 @@ function exe_blocks(core_num) -- , rob_exe_log, miss_log)
 	    
 	       -- encounter a miss 
 	       if miss > 0 and tonumber(pc) > icount_sb - miss_delay then
-		  print('MISS:', pc, icount_sb, miss)
+		  -- print('MISS:', pc, icount_sb, miss)
 		  misscnt_sb = misscnt_sb + miss
 	       end
 	    end			-- atype == 'L' or atype == 'S'
