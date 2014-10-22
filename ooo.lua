@@ -297,18 +297,20 @@ function log_micro(sb, pc, show_dep)
 end
 
 function log_sb_ooo(sb)
-   print(string.format("SB %s %d %s", sb.addr, sb.core, #sb.micro))
+   print(string.format("  begin_sb { addr=0x%s, core=%d,  weight=%s }", sb.addr, sb.core, #sb.micro))
 
    for i, v in ipairs(sb.ooo) do
       --io.write(i..': ')
       local mic = sb.micro[v]
       -- log_micro(sb, v)
       if mic.flag == "S" then	 
-	 print(string.format("%d: %s %s %s", i, 'S', mic.i or 'T', mic.o))
+	 print(string.format("    micro { pc=%d, op='S', i=%s, o=0x%s }", i, mic.i and mic.i:sub(2) or 'nil', mic.o:sub(2)))
       elseif mic.flag == "L" then
-	 print(string.format("%d: %s %s %s", i, 'L', mic.o or 'T', mic.i))
+	 print(string.format("    micro { pc=%d, op='L', o=%s, i=0x%s }", i, mic.o and mic.i:sub(2) or 'nil', mic.i:sub(2)))
       end
    end
+
+   print('  end_sb()')
 end
 
 function log_sb(sb, show_dep)
@@ -399,7 +401,7 @@ function parse_input(sb_size, sb_merge)
 	    issue.sb[#issue.sb + 1] = sb
 	    sb = nil		-- TODO: end_sb()
 	    -- sb = new_sb(addr, core, weight)
-	    print(string.format("ISSUE %d", #issue.sb))
+	    print(string.format("begin_issue{ num_sb=%d }", #issue.sb))
 
 	    for core, blk in ipairs(issue.sb) do
 	       -- log_sb(blk)
@@ -407,6 +409,7 @@ function parse_input(sb_size, sb_merge)
 	       log_sb_ooo(blk)
 	    end
 
+	    print("end_issue()")
 	    -- issue.sb = {}
 	    issue = new_issue()
 

@@ -122,4 +122,49 @@ end
 -- exe_blocks(4, open_traces("./date.ooo.log"))
 -- exe_blocks(4, open_traces(arg[1], arg[2], arg[3], arg[4], arg[5]))
 
-exe_blocks(4)
+-- exe_blocks(4)
+
+
+function micro(m)
+--   if atype == 'L' or atype == 'S' then
+      r.accesstype = m.op == "L" and 0 or 1 -- L=0, S=1
+      r.address = m.addr
+      r.size = 4
+      
+      local c = core[tonumber(current_core)]
+      
+      local miss = d4lua.do_cache_ref(tonumber(current_core), r)
+      
+      -- encounter a miss 
+      if miss > 0 and tonumber(pc) > icount_sb - miss_delay then
+	 -- print('MISS:', pc, icount_sb, miss)
+	 misscnt_sb = misscnt_sb + miss
+      end
+--   end			-- atype == 'L' or atype == 'S'   
+end
+
+function begin_sb(sb)
+   current_core = sb.core
+   icount_sb = sb.weight
+end
+
+function end_sb()
+   -- summarize the current SB
+   local c = core[tonumber(current_core)]
+   c.icount = c.icount + icount_sb
+   c.delay_count = c.delay_count  + misscnt_sb * miss_delay
+   c.clk_pend = c.clk_pend + icount_sb  + misscnt_sb * miss_delay
+end
+
+function begin_issue(issue)
+   -- a line of blocks get issued
+   local max_clk = 0
+   -- io.write("EXE ")
+   for _, c in ipairs(core) do
+      if max_clk < c.clk_pend then max_clk = c.clk_pend end
+      -- io.write(string.format("%d ", c.clk_pend))
+      c.clk_pend = 0
+   end
+   clkcount = clkcount + max_clk
+   -- print(' CLK', max_clk)
+end
