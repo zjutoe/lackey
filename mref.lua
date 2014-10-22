@@ -74,20 +74,21 @@ function exe_blocks(core_num) -- , rob_exe_log, miss_log)
 
 	 else
 	    local pc, atype, reg, addr = string.match(line, "(%d+): (%a+) (%w+) (%w+)")
-
-	    r.accesstype = atype=="L" and 0 or 1 -- L=0, S=1
-	    r.address = tonumber(addr:sub(2), 16)
-	    r.size = 4
-
-	    local c = core[tonumber(current_core)]
+	    if atype == 'L' or atype == 'S' then
+	       r.accesstype = atype=="L" and 0 or 1 -- L=0, S=1
+	       r.address = tonumber(addr:sub(2), 16)
+	       r.size = 4
+	       
+	       local c = core[tonumber(current_core)]
+	       
+	       local miss = d4lua.do_cache_ref(tonumber(current_core), r)
 	    
-	    local miss = d4lua.do_cache_ref(tonumber(current_core), r)
-	    
-	    -- encounter a miss 
-	    if miss > 0 and tonumber(pc) > icount_sb - miss_delay then
-	       print('MISS:', pc, icount_sb, miss)
-	       misscnt_sb = misscnt_sb + miss
-	    end
+	       -- encounter a miss 
+	       if miss > 0 and tonumber(pc) > icount_sb - miss_delay then
+		  print('MISS:', pc, icount_sb, miss)
+		  misscnt_sb = misscnt_sb + miss
+	       end
+	    end			-- atype == 'L' or atype == 'S'
 
 	 end
       end
