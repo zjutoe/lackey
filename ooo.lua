@@ -524,3 +524,8 @@ rob_w = core_num
 init_rob(rob, rob_d, rob_w)
 -- print( __LINE__())
 parse_input(sb_size, sb_merge)
+
+
+function begin_sb(sb)
+   
+end

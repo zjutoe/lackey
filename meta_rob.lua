@@ -143,7 +143,7 @@ function issue_sb(rob)
       local width = 0
 
       -- TODO add a switch verbose or terse
-      print('ISSUE', List.size(l))
+      print(string.format('begin_issue {size=%d}', List.size(l)))
       
       local cid = 1
       while List.size(l) > 0 do
@@ -155,36 +155,39 @@ function issue_sb(rob)
 	    w_max = 0 + v.w
 	 end
 
-	 print(string.format('SB %s %d %d', v.addr, cid, v.w))
+	 print(string.format('  begin_sb{ addr=0x%s, cid=%d, weight=%d}', v.addr, cid, v.w))
 	 cid = cid + 1
 
 	 for pc, ins in ipairs(v.inst) do
-	    io.write(pc..': ')
+	    io.write(string.format("    micro { pc=%d, op='%s', ", pc, ins.tag))
 	    if ins.tag == 'OP' then
-	       io.write('OP ', ins.to)
-	       if ins.ti1 ~=nil then io.write(' ', ins.ti1) end
-	       if ins.ti2 ~=nil then io.write(' ', ins.ti2) end
-	       if ins.ti3 ~=nil then io.write(' ', ins.ti3) end
-	       print('')
+	       -- io.write('OP ', ins.to)
+	       if ins.ti1 ~=nil then io.write('t1=', ins.ti1:sub(2)) end
+	       if ins.ti2 ~=nil then io.write(', t2=', ins.ti2:sub(2)) end
+	       if ins.ti3 ~=nil then io.write(', t3=', ins.ti3:sub(2)) end
+	       print(' }')
 	    -- elseif ins.tag == 'I' then
 	    --    print(string.format("%s %s", ins.tag, ins.addr))
 	    elseif ins.tag == 'L' then
-	       print(string.format("L T%s M%s", ins.tmp, ins.addr))
+	       print(string.format("o=%s, i=0x%s }", ins.tmp, ins.addr))
 	    elseif ins.tag == 'S' then
-	       print(string.format("S T%s M%s", ins.tmp, ins.addr))
+	       print(string.format("i=%s, o=0x%s }", #ins.tmp > 0 and ins.tmp or 'nil', ins.addr))
 	    elseif ins.tag == 'G' then
-	       print(string.format("G T%s G%s", ins.tmp, ins.addr))
+	       print(string.format("o=%s, i=%s }", ins.tmp, #ins.addr > 0 and ins.addr or 'nil'))
 	    elseif ins.tag == 'P' then
-	       print(string.format("P T%s G%s", ins.tmp, ins.addr))
+	       print(string.format("i=%s, o=%s }", #ins.tmp > 0 and ins.tmp or 'nil', ins.addr))
 	    end
 	 end
 	 -- for _, mem_rw in ipairs(v.mem_access) do
 	 --    print(string.format('MEM %d %x', mem_rw.type, mem_rw.addr))
 	 -- end	 
 
+	 print('  end_sb()')
 	 sbs_run[v.addr] = sbs[v.addr]
 	 sbs[v.addr] = nil
       end      
+
+      print('end_issue()')
 
       -- TODO add a switch verbose or terse
       -- logd(Core.clocks, w_sum, w_max, width, w_sum/w_max)
