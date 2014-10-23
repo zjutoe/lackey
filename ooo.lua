@@ -306,7 +306,7 @@ function log_sb_ooo(sb)
       if mic.flag == "S" then	 
 	 print(string.format("    micro { pc=%d, op='S', i=%s, o=0x%s }", i, mic.i and mic.i:sub(2) or 'nil', mic.o:sub(2)))
       elseif mic.flag == "L" then
-	 print(string.format("    micro { pc=%d, op='L', o=%s, i=0x%s }", i, mic.o and mic.i:sub(2) or 'nil', mic.i:sub(2)))
+	 print(string.format("    micro { pc=%d, op='L', o=%s, i=0x%s }", i, mic.o and mic.o:sub(2) or 'nil', mic.i:sub(2)))
       end
    end
 
