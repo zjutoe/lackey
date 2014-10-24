@@ -527,5 +527,94 @@ parse_input(sb_size, sb_merge)
 
 
 function begin_sb(sb)
+   sb = new_sb(sb.addr, sb.cid, sb.weight)
    
+   -- FIXME make them member of sb, i.e. sb.mem_writer,
+   -- sb.reg_writer
+   mem_writer = {}
+   reg_writer = {}
+end
+
+function end_sb()
+   -- print( __LINE__())
+   if sb then
+      issue.sb[#issue.sb + 1] = sb
+   end
+end
+
+function begin_issue()
+   -- sb = new_sb(addr, core, weight)
+   print(string.format("begin_issue{ num_sb=%d }", #issue.sb))
+
+   for core, blk in ipairs(issue.sb) do
+      -- log_sb(blk)
+      reorder_sb(blk)
+      log_sb_ooo(blk)
+   end
+
+   print("end_issue()")
+   -- issue.sb = {}
+   issue = new_issue()
+
+end
+
+function end_issue()
+   issue.sb[#issue.sb + 1] = sb
+   sb = nil		-- TODO: end_sb()
+end
+
+function micro(mic)
+
+   --local pc, k, t, gmt = string.match(line, "(%d+): (%a) (%w+) (%w+)")
+   -- print (pc, k, t, gmt)
+
+   if mic.op == 'S' then
+      sb.micro[#sb.micro + 1] = mic
+      sb.mref[#sb.mref + 1] = #sb.micro
+      sb.m_writer[mic.o] = #sb.micro
+      if mic.i then sb.dep[#sb.micro] = sb.t_writer[mic.i] end
+
+   elseif k == 'L' then      
+      sb.micro[#sb.micro + 1] = mic
+      sb.mref[#sb.mref + 1] = #sb.micro
+      sb.t_writer[mic.o] = #sb.micro
+      sb.dep[#sb.micro] = sb.m_writer[mic.i]      
+      
+   elseif k == 'P' then
+      sb.micro[#sb.micro + 1] = mic
+      sb.g_writer[mic.o] = #sb.micro
+      if mic.i then sb.dep[#sb.micro] = sb.t_writer[mic.i] end
+
+   elseif k == 'G' then
+      sb.micro[#sb.micro + 1] = mic
+      sb.t_writer[mic.o] = #sb.micro
+      sb.dep[#sb.micro] = sb.g_writer[mic.i]
+
+   elseif k == 'OP' then
+      -- print( __LINE__())
+      local b, e = string.find(line, 'T%d+')
+      local d = nil
+      local s = {}
+      if b ~= nil then
+	 d = line:sub(b, e)
+      end
+      b, e = string.find(line, 'T%d+', e)
+      while b ~= nil do
+	 s[#s + 1] = line:sub(b, e)
+	 b, e = string.find(line, 'T%d+', e)
+      end
+      sb.micro[#sb.micro + 1] = {flag='OP', i=s, o=d}
+
+      if d ~= nil then
+	 sb.writer[d] = #sb.micro
+      end
+      if #s > 0 then
+	 local dep = {}
+	 for i, v in ipairs(s) do
+	    dep[#dep + 1] = sb.writer[v]
+	 end
+	 sb.dep[#sb.micro] = dep
+      end
+   end			-- k == 'OP'   
+
 end

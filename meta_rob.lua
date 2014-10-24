@@ -161,10 +161,19 @@ function issue_sb(rob)
 	 for pc, ins in ipairs(v.inst) do
 	    io.write(string.format("    micro { pc=%d, op='%s', ", pc, ins.tag))
 	    if ins.tag == 'OP' then
-	       -- io.write('OP ', ins.to)
-	       if ins.ti1 ~=nil then io.write('t1=', ins.ti1:sub(2)) end
-	       if ins.ti2 ~=nil then io.write(', t2=', ins.ti2:sub(2)) end
-	       if ins.ti3 ~=nil then io.write(', t3=', ins.ti3:sub(2)) end
+	       io.write('o=', ins.to:sub(2))
+	       if  #ins.ti == 0 then 
+		  io.write('i=nil')
+	       else
+		  io.write(', i={')
+		  for i, v in ipairs(ins.ti) do
+		     io.write(ins.ti[i]:sub(2), ', ')
+		  end
+		  io.write('}')
+	       end
+	       -- if ins.ti1 ~=nil then io.write(', i={', ins.ti1:sub(2)) end
+	       -- if ins.ti2 ~=nil then io.write(', ', ins.ti2:sub(2)) end
+	       -- if ins.ti3 ~=nil then io.write(', ', ins.ti3:sub(2), '} ') end
 	       print(' }')
 	    -- elseif ins.tag == 'I' then
 	    --    print(string.format("%s %s", ins.tag, ins.addr))
@@ -344,7 +353,7 @@ function parse_lackey_log(sb_size, sb_merge)
 	       print('ERROR: invalid OP')
 	    end
 	    -- print(line:sub(5), to, ti1, ti2, ti3)
-	    inst[#inst + 1] = {tag="OP", to=to, ti1=ti1, ti2=ti2, ti3=ti3}
+	    inst[#inst + 1] = {tag="OP", to=to, ti={ti1, ti2, ti3} }
 	 end
       end
    end
