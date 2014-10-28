@@ -92,156 +92,6 @@ local reg_io = {}
 
 local blk_seq = 0
 
--- we are entering a new superblock
-function start_sb(addr)
-   -- print("SB "..addr)
-   sb_addr = addr
-end
-
--- place the superblock in the rob
-function place_sb(rob, sb)
-
-   -- the sb should be placed after all of its depending sb's
-   local buf = rob.buf
-   -- d is the depth, i.e. in which level/line of the rob the sb should be put
-   local d = buf.first
-   local i = 0
-   for k, v in pairs(deps) do
-      i = i + 1
-      if d <= v.d then d = v.d end
-   end
-
-   -- look for a non-full line which can hold the sb
-   found_slot = false
-   local l
-   for i=d+1, buf.last do
-      l = buf[i]
-      -- if #l < rob.WIDTH then 
-      if List.size(l) < rob.WIDTH then
-	 found_slot = true 
-	 d = i
-	 break
-      end
-   end
-
-   if not found_slot then
-      List.pushright(buf, List.new())
-      --List.pushright(buf, {})
-      d = buf.last
-      l = buf[d]
-   end
-
-   -- place the sb in the proper level of the rob
-   sb['d'] = d 
-   -- l[#l + 1] = sb		-- the line is a List
-   List.pushright(l, sb)
-   logd('place:', sb.addr, d)
-
-end				-- function place_sb(rob, sb)
-
--- issue a line of sb's from the rob when necessary
-function issue_sb(rob)
-   local buf = rob.buf
-   -- if List.size(buf) > rob.MAX then
-   while List.size(buf) > rob.MAX do
-      local l = List.popleft(buf)
-      local w_sum = 0
-      local w_max = 0
-      local width = 0
-
-      -- TODO add a switch verbose or terse
-      print('ISSUE', List.size(l))
-      
-      local cid = 1
-      while List.size(l) > 0 do
-	 v = List.popleft(l)
-	 --for k, v in ipairs(l) do
-	 width = width + 1
-	 w_sum = w_sum + v.w
-	 if w_max < 0 + v.w then
-	    w_max = 0 + v.w
-	 end
-
-	 print(string.format('SB %s %d %d', v.addr, cid, v.w))
-	 cid = cid + 1
-
-	 for _, ins in ipairs(v.inst) do
-	    print(string.format("%s %s", ins.tag, ins.addr))
-	 end
-	 -- for _, mem_rw in ipairs(v.mem_access) do
-	 --    print(string.format('MEM %d %x', mem_rw.type, mem_rw.addr))
-	 -- end	 
-
-	 sbs_run[v.addr] = sbs[v.addr]
-	 sbs[v.addr] = nil
-      end      
-
-      -- TODO add a switch verbose or terse
-      -- logd(Core.clocks, w_sum, w_max, width, w_sum/w_max)
-   end
-end
-
-
--- the current superblock ends, we'll analyze it here
-function end_sb()
-   -- build the superblock
-   local sb = {}
-
-   sb.seq = blk_seq
-   blk_seq = blk_seq + 1
-
-   sb['inst'] = inst
-   sb['addr'] = sb_addr
-   sb['w'] = sb_weight
-   sb['deps'] = deps
-   sb['mem_access'] = mem_access
-
-   local dep_mem_cnt, dep_reg_cnt = 0, 0
-   for k, v in pairs(mem_input) do
-      dep_mem_cnt = dep_mem_cnt + v
-   end
-   for k, v in pairs(reg_input) do
-      dep_reg_cnt = dep_reg_cnt + v
-   end   
-
-   sb.dep_mem_cnt = dep_mem_cnt
-   sb.dep_reg_cnt = dep_reg_cnt
-
-   sb.reg_out_offset = reg_out_offset
-   sb.reg_in_offset = reg_in_offset
-   sb.reg_io = reg_io
-
-   sbs[sb_addr] = sb
-   -- io.write(sb_addr.."<=")
-   -- for k, v in pairs(deps) do
-   --    io.write(k.." ")
-   -- end
-   -- print(' M:'..dep_mem_cnt..' R:'..dep_reg_cnt)
-   place_sb(rob, sb)
-   issue_sb(rob)
-
-   -- FIXME do this in the init_sb()
-   inst = {}
-   deps = {}
-   mem_input = {}
-   mem_access = {}
-   reg_input = {}
-   reg_out_offset = {}
-   reg_in_offset = {}
-   reg_io = {}
-
-end				-- function end_sb()
-
--- the table deps is a set, we use addr as key, so searching it is
--- efficient
-function add_depended(addr)
-   deps[addr] = sbs[addr]
-   -- print('add_depended:', addr)
-end
-
-function set_sb_weight(w)
-   sb_weight = w
-end
 
 function new_issue()
    local issue = {}
@@ -259,7 +109,9 @@ function new_sb(addr, core, weight)
    sb.micro = {}
    sb.ooo = {}			-- the reorder of the micro
    sb.mref = {}
-   sb.writer = {}
+   sb.m_writer = {}
+   sb.t_writer = {}
+   sb.g_writer = {}
    sb.dep = {}
 
    return sb
@@ -428,10 +280,6 @@ function parse_input(sb_size, sb_merge)
 	       sb.writer[m] = #sb.micro
 	       if t ~= nil then sb.dep[#sb.micro] = sb.writer[t] end
 	       
-	       -- sb.micro.mref[#sb.micro.mref + 1] = {flag='S', addr=d_addr}
-	       -- mem_writer[addr] = ins.addr
-	       -- ins.ops[#ins.ops + 1] = {flag='S', addr=line:sub(3)}
-
 	    elseif k == 'L' then
 	       -- print( __LINE__())
 	       local m = gmt -- local t, m = string.match(line:sub(3), "(%w+) (%w+)")
@@ -441,13 +289,6 @@ function parse_input(sb_size, sb_merge)
 	       if t ~= nil then sb.writer[t] = #sb.micro end
 	       sb.dep[#sb.micro] = sb.writer[m]
 	       
-	       -- local addr = tonumber(line:sub(3), 16)
-	       -- ins.mref[#ins.mref + 1] = {flag='L', addr=addr}
-	       -- local dep_addr = mem_writer[addr]
-	       -- if dep_addr and dep_addr ~= ins.addr then
-	       --    ins.dep[#ins.dep + 1] = dep_addr
-	       -- end
-	       -- ins.ops[#ins.ops + 1] = {flag='L', addr=line:sub(3)}
 
 	    elseif k == 'P' then
 	       -- print( __LINE__())
@@ -457,11 +298,6 @@ function parse_input(sb_size, sb_merge)
 	       sb.writer[g] = #sb.micro 
 	       if t ~= nil then sb.dep[#sb.micro] = sb.writer[t] end
 
-	       -- local addr = tonumber(line:sub(3))
-	       -- -- print("[D] line/addr:", line, addr)
-	       -- reg_writer[addr] = ins.addr
-	       -- ins.ops[#ins.ops + 1] = {flag='P', addr=line:sub(3)}
-
 	    elseif k == 'G' then
 	       -- print( __LINE__())
 	       local g = gmt -- local t, g = string.match(line:sub(3), "(%w+) (%w+)")
@@ -469,13 +305,6 @@ function parse_input(sb_size, sb_merge)
 	       sb.micro[#sb.micro + 1] = {flag='G', i=g, o=t}
 	       sb.writer[t] = #sb.micro
 	       sb.dep[#sb.micro] = sb.writer[g]
-
-	       -- local addr = tonumber(line:sub(3))
-	       -- local dep_addr = reg_writer[addr]
-	       -- if dep_addr and dep_addr ~= ins.addr then
-	       --    ins.dep[#ins.dep + 1] = dep_addr
-	       -- end
-	       -- ins.ops[#ins.ops + 1] = {flag='G', addr=line:sub(3)}
 
 	    elseif k == 'OP' then
 	       -- print( __LINE__())
@@ -523,10 +352,11 @@ rob_w = core_num
 -- print( __LINE__())
 init_rob(rob, rob_d, rob_w)
 -- print( __LINE__())
-parse_input(sb_size, sb_merge)
+-- parse_input(sb_size, sb_merge)
 
 
 function begin_sb(sb)
+   -- print(__LINE__())
    sb = new_sb(sb.addr, sb.cid, sb.weight)
    
    -- FIXME make them member of sb, i.e. sb.mem_writer,
@@ -543,8 +373,14 @@ function end_sb()
 end
 
 function begin_issue()
+   -- print(__LINE__())
    -- sb = new_sb(addr, core, weight)
    print(string.format("begin_issue{ num_sb=%d }", #issue.sb))
+end
+
+function end_issue()
+   -- print(__LINE__())
+   -- issue.sb[#issue.sb + 1] = sb
 
    for core, blk in ipairs(issue.sb) do
       -- log_sb(blk)
@@ -555,16 +391,10 @@ function begin_issue()
    print("end_issue()")
    -- issue.sb = {}
    issue = new_issue()
-
-end
-
-function end_issue()
-   issue.sb[#issue.sb + 1] = sb
-   sb = nil		-- TODO: end_sb()
 end
 
 function micro(mic)
-
+   -- print(__LINE__(), mic.pc, mic.op)
    --local pc, k, t, gmt = string.match(line, "(%d+): (%a) (%w+) (%w+)")
    -- print (pc, k, t, gmt)
 
@@ -591,30 +421,52 @@ function micro(mic)
       sb.dep[#sb.micro] = sb.g_writer[mic.i]
 
    elseif k == 'OP' then
-      -- print( __LINE__())
-      local b, e = string.find(line, 'T%d+')
-      local d = nil
-      local s = {}
-      if b ~= nil then
-	 d = line:sub(b, e)
+      sb.micro[#sb.micro + 1] = mic
+      sb.t_writer[mic.o] = #sb.micro
+      local dep = {}
+      for _, d in pairs(mic.i) do
+	 dep[#dep + 1] = sb.t_writer[d]
       end
-      b, e = string.find(line, 'T%d+', e)
-      while b ~= nil do
-	 s[#s + 1] = line:sub(b, e)
-	 b, e = string.find(line, 'T%d+', e)
-      end
-      sb.micro[#sb.micro + 1] = {flag='OP', i=s, o=d}
+      sb.dep[#sb.micro] = dep
 
-      if d ~= nil then
-	 sb.writer[d] = #sb.micro
-      end
-      if #s > 0 then
-	 local dep = {}
-	 for i, v in ipairs(s) do
-	    dep[#dep + 1] = sb.writer[v]
-	 end
-	 sb.dep[#sb.micro] = dep
-      end
+      -- -- print( __LINE__())
+      -- local b, e = string.find(line, 'T%d+')
+      -- local d = nil
+      -- local s = {}
+      -- if b ~= nil then
+      -- 	 d = line:sub(b, e)
+      -- end
+      -- b, e = string.find(line, 'T%d+', e)
+      -- while b ~= nil do
+      -- 	 s[#s + 1] = line:sub(b, e)
+      -- 	 b, e = string.find(line, 'T%d+', e)
+      -- end
+      -- sb.micro[#sb.micro + 1] = {flag='OP', i=s, o=d}
+
+      -- if d ~= nil then
+      -- 	 sb.writer[d] = #sb.micro
+      -- end
+      -- if #s > 0 then
+      -- 	 local dep = {}
+      -- 	 for i, v in ipairs(s) do
+      -- 	    dep[#dep + 1] = sb.writer[v]
+      -- 	 end
+      -- 	 sb.dep[#sb.micro] = dep
+      -- end
    end			-- k == 'OP'   
 
+end
+
+-- print(__LINE__())
+
+local BUFSIZE = 2^8		-- 32K
+local f = io.input(arg[1])	-- open input file
+local cc, lc, wc = 0, 0, 0	-- char, line, and word counts
+while true do
+   -- print(__LINE__())
+   local lines, rest = f:read(BUFSIZE, "*line")
+   if not lines then break end
+   if rest then lines = lines .. rest .. "\n" end
+
+   assert(loadstring(lines))()
 end
