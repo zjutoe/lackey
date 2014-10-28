@@ -163,7 +163,7 @@ function issue_sb(rob)
 	    if ins.tag == 'OP' then
 	       io.write('o=', ins.to:sub(2))
 	       if  #ins.ti == 0 then 
-		  io.write('i=nil')
+		  io.write(', i=nil')
 	       else
 		  io.write(', i={')
 		  for i, v in ipairs(ins.ti) do
