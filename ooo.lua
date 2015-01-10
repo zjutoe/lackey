@@ -423,8 +423,10 @@ function micro(mic)
    elseif k == 'OP' then
       sb.t_writer[mic.o] = #sb.micro
       local dep = {}
-      for _, d in pairs(mic.i) do
-	 dep[#dep + 1] = sb.t_writer[d]
+      if mic.i ~= nil then
+	 for _, d in pairs(mic.i) do
+	    dep[#dep + 1] = sb.t_writer[d]
+	 end
       end
       sb.dep[#sb.micro] = dep
 
