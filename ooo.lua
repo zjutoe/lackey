@@ -95,7 +95,7 @@ local blk_seq = 0
 
 function new_issue()
    local issue = {}
-   issue.sb = {}
+   issue.sbs = {}
    return issue
 end
 
@@ -149,7 +149,7 @@ function log_micro(sb, pc, show_dep)
 end
 
 function log_sb_ooo(sb)
-   print(string.format("  begin_sb { addr=0x%s, core=%d,  weight=%s }", sb.addr, sb.core, #sb.micro))
+   print(string.format("  begin_sb { addr=0x%08x, core=%d,  weight=%s }", sb.addr, sb.core, #sb.micro))
 
    for i, v in ipairs(sb.ooo) do
       --io.write(i..': ')
@@ -355,9 +355,10 @@ init_rob(rob, rob_d, rob_w)
 -- parse_input(sb_size, sb_merge)
 
 
-function begin_sb(sb)
+function begin_sb(sb_meta)
    -- print(__LINE__())
-   sb = new_sb(sb.addr, sb.cid, sb.weight)
+   -- print(string.format("# sb.addr=0x%08x, cid=%d, weight=%d", sb_meta.addr, sb_meta.cid, sb_meta.weight))
+   sb = new_sb(sb_meta.addr, sb_meta.cid, sb_meta.weight)
    
    -- FIXME make them member of sb, i.e. sb.mem_writer,
    -- sb.reg_writer
@@ -368,28 +369,28 @@ end
 function end_sb()
    -- print( __LINE__())
    if sb then
-      issue.sb[#issue.sb + 1] = sb
+      issue.sbs[#issue.sbs + 1] = sb
    end
 end
 
-function begin_issue()
+function begin_issue(issue_meta)
    -- print(__LINE__())
    -- sb = new_sb(addr, core, weight)
-   print(string.format("begin_issue{ num_sb=%d }", #issue.sb))
+   print(string.format("begin_issue{ num_sb=%d }", issue_meta.size))
 end
 
 function end_issue()
    -- print(__LINE__())
-   -- issue.sb[#issue.sb + 1] = sb
+   -- issue.sbs[#issue.sbs + 1] = sb
 
-   for core, blk in ipairs(issue.sb) do
+   for core, blk in ipairs(issue.sbs) do
       -- log_sb(blk)
       reorder_sb(blk)
       log_sb_ooo(blk)
    end
 
    print("end_issue()")
-   -- issue.sb = {}
+   -- issue.sbs = {}
    issue = new_issue()
 end
 
@@ -398,30 +399,28 @@ function micro(mic)
    --local pc, k, t, gmt = string.match(line, "(%d+): (%a) (%w+) (%w+)")
    -- print (pc, k, t, gmt)
 
-   if mic.op == 'S' then
-      sb.micro[#sb.micro + 1] = mic
+   sb.micro[#sb.micro + 1] = mic
+   local k = mic.op
+
+   if k == 'S' then
       sb.mref[#sb.mref + 1] = #sb.micro
       sb.m_writer[mic.o] = #sb.micro
       if mic.i then sb.dep[#sb.micro] = sb.t_writer[mic.i] end
 
    elseif k == 'L' then      
-      sb.micro[#sb.micro + 1] = mic
       sb.mref[#sb.mref + 1] = #sb.micro
       sb.t_writer[mic.o] = #sb.micro
       sb.dep[#sb.micro] = sb.m_writer[mic.i]      
       
    elseif k == 'P' then
-      sb.micro[#sb.micro + 1] = mic
       sb.g_writer[mic.o] = #sb.micro
       if mic.i then sb.dep[#sb.micro] = sb.t_writer[mic.i] end
 
    elseif k == 'G' then
-      sb.micro[#sb.micro + 1] = mic
       sb.t_writer[mic.o] = #sb.micro
       sb.dep[#sb.micro] = sb.g_writer[mic.i]
 
    elseif k == 'OP' then
-      sb.micro[#sb.micro + 1] = mic
       sb.t_writer[mic.o] = #sb.micro
       local dep = {}
       for _, d in pairs(mic.i) do
