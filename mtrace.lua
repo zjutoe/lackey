@@ -9,24 +9,28 @@ function __LINE__() return debug.getinfo(2, 'l').currentline end
 local g_cid = 0
 
 function micro(m)   
-   if m.op == 'L' then
-      print (string.format('R 0x%08x %d', m.i, g_cid))
-   elseif m.op == 'S' then
-      print (string.format('W 0x%08x %d', m.o, g_cid))
+   if m.op == "L" then
+      io.write('"R ' ..string.format('0x%08x', m.i).. ' ' .. g_cid .. '",')
+   elseif m.op == "S" then
+      io.write('"W ' ..string.format('0x%08x', m.o).. ' ' .. g_cid .. '",')
    end
 end
 
 function begin_sb(sb)
-   g_cid = sb.cid - 1
+   g_cid = sb.cid
+   io.write("{")
 end
 
 function end_sb()
+   io.write("}, ")
 end
 
 function begin_issue(issue)   
+   io.write('issue {')
 end
 
 function end_issue()
+   print('}')
 end
 
 
@@ -40,5 +44,3 @@ while true do
 
    assert(loadstring(lines))()
 end
-
-
