@@ -90,8 +90,8 @@ function _M:new (obj)
    -- logd(' '..obj.name .. ' tag:', tag_msb, tag_lsb)
    obj.tag_mask = bit_mask(tag_msb, tag_lsb)
 
-   logd(string.format('  %s tag:%x index:%x offset:%x', 
-   		      obj.name, obj.tag_mask, obj.index_mask, obj.offset_mask))
+   -- logd(string.format('  %s tag:%x index:%x offset:%x', 
+   -- 		      obj.name, bit.tohex(obj.tag_mask), obj.index_mask, obj.offset_mask))
 
    return obj
 end
