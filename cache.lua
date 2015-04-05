@@ -192,7 +192,7 @@ end
 
 
 -- which core (meet a miss and) load this block of data 1st.
-local first_loader = {}
+local accessed = {}
 
 function _M:read(addr, cid)
    local tag, index, offset = self:tag(addr), self:index(addr), self:offset(addr)
@@ -203,13 +203,13 @@ function _M:read(addr, cid)
    local blk = self:search_block(tag, index)
 
    if not blk.tag or blk.tag ~= tag then -- a miss
-      first_loader[bit.bor(tag, index)] = cid
+      accessed[bit.bor(tag, index)] = {cid = true}
       
       self.read_miss = self.read_miss + 1
       if blk.status and  blk.status == 'M' then	-- dirty block, need to write back to next level cache
 	 if self.next_level then
 	    local write_back_addr = bit.bor(blk.tag, index)
-	    first_loader[write_back_addr] = nil
+	    accessed[write_back_addr] = nil
 	    delay = delay + self.next_level:write(write_back_addr)
 	 end
       end
@@ -236,8 +236,10 @@ function _M:read(addr, cid)
 
    else				-- a hit
       -- a constructive interference hit
-      if first_loader[bit.bor(tag, index)] ~= cid then
+      local access_cores = accessed[bit.bor(tag, index)]
+      if access_cores and not access_cores[cid] then
 	 self.read_hit_const = self.read_hit_const + 1
+	 access_cores[cid] = true
       end
       self.read_hit = self.read_hit + 1
    end
@@ -248,7 +250,7 @@ function _M:read(addr, cid)
    return delay
 end
 
-function _M:write(addr, val)
+function _M:write(addr, val, cid)
    local tag, index, offset = self:tag(addr), self:index(addr), self:offset(addr)
    logd(string.format("%s W: %x %x %x", 
 		      self.name, tag, index, offset))
@@ -257,11 +259,13 @@ function _M:write(addr, val)
    local delay = self.write_hit_delay
 
    if not blk.tag or blk.tag ~= tag then -- a miss
+      accessed[bit.bor(tag, index)] = {cid = true}
       self.write_miss = self.write_miss + 1
       
       if blk.status and  blk.status == 'M' then	-- dirty block, need to write back to next level cache
 	 if self.next_level then
 	    local write_back_addr = bit.bor(blk.tag, index)
+	    accessed[write_back_addr] = nil
 	    delay = delay + self.next_level:write(write_back_addr)
 	 end
       end
@@ -288,6 +292,13 @@ function _M:write(addr, val)
       blk.tag = tag
 
    else -- a hit
+      -- a constructive interference hit
+      local access_cores = accessed[bit.bor(tag, index)]
+      if access_cores and not access_cores[cid] then
+	 self.write_hit_const = self.write_hit_const + 1
+	 access_cores[cid] = true
+      end
+
       self.write_hit = self.write_hit + 1
 
       if self.peers and blk.status ~= 'M' then -- blk.status == 'S', need to invalidate peer blocks
