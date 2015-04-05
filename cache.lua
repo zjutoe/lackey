@@ -41,8 +41,10 @@ next_level = nil
 
 read_miss = 0
 read_hit = 0
+read_hit_const = 0
 write_miss = 0
 write_hit = 0
+write_hit_const = 0
 write_back_cnt = 0
 
 read_hit_delay = 1
@@ -188,7 +190,11 @@ function _M:search_block(tag, index)
    return block
 end
 
-function _M:read(addr)
+
+-- which core (meet a miss and) load this block of data 1st.
+local first_loader = {}
+
+function _M:read(addr, cid)
    local tag, index, offset = self:tag(addr), self:index(addr), self:offset(addr)
    logd(string.format("%s R: %x %x %x", 
 		      self.name, tag, index, offset))
@@ -197,14 +203,18 @@ function _M:read(addr)
    local blk = self:search_block(tag, index)
 
    if not blk.tag or blk.tag ~= tag then -- a miss
+      first_loader[bit.bor(tag, index)] = cid
+      
       self.read_miss = self.read_miss + 1
       if blk.status and  blk.status == 'M' then	-- dirty block, need to write back to next level cache
 	 if self.next_level then
 	    local write_back_addr = bit.bor(blk.tag, index)
+	    first_loader[write_back_addr] = nil
 	    delay = delay + self.next_level:write(write_back_addr)
 	 end
       end
 
+      -- coherence
       if self.peers then
 	 local peer_response = false
 	 for _, c in pairs(self.peers) do
@@ -225,6 +235,10 @@ function _M:read(addr)
       blk.status = 'S'
 
    else				-- a hit
+      -- a constructive interference hit
+      if first_loader[bit.bor(tag, index)] ~= cid then
+	 self.read_hit_const = self.read_hit_const + 1
+      end
       self.read_hit = self.read_hit + 1
    end
 
