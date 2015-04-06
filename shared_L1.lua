@@ -17,9 +17,10 @@ local L2 = cache:new{
    word_size = 4,		-- word size in bytes
    blk_size = 64,		-- block size in bytes, 2^6
    n_blks = 1024,		-- n_blks, 2^10
-   assoc = 4,			-- assoc
-   read_hit_delay = 4,		-- read delay
-   write_hit_delay = 8,		-- write delay
+   assoc = 8,			-- assoc
+   read_hit_delay = 10,		-- read delay
+   write_hit_delay = 10,	-- write delay
+   miss_delay = 40,		-- L3 hit delay
    coherent_delay = 8,		-- coherent delay
    write_back = true,		-- write back
    next_level = nil}		-- next level
@@ -29,10 +30,10 @@ local L1 = cache:new{
    word_size = 4,		-- word size in bytes
    blk_size = 64,		-- block size in bytes, 2^6
    n_blks = 256,		-- n_blks, 2^8
-   assoc = 4,			-- assoc
-   read_hit_delay = 1,		-- read_delay
-   write_hit_delay = 2,		-- write_delay
-   coherent_delay = 2,		-- coherent delay
+   assoc = 8,			-- assoc
+   read_hit_delay = 4,		-- read_delay
+   write_hit_delay = 4,		-- write_delay
+   coherent_delay = 8,		-- coherent delay
    write_back = true,		-- write_back
    next_level = L2}		-- next_level
 
@@ -110,6 +111,7 @@ function summarize(cache_list)
       print(c.name)
       print(string.format( "read hit/hit const/miss: %d / %d / %d : %.4f", c.read_hit, c.read_hit_const, c.read_miss, c.read_miss / (c.read_hit + c.read_miss)))
       print(string.format("write hit/hit const/miss: %d / %d / %d : %.4f", c.write_hit, c.write_hit_const, c.write_miss, c.write_miss / (c.write_hit + c.write_miss)))
+      print(string.format("clk/access: %d / %d : %.4f", c._clk, c.read_hit + c.write_hit + c.read_miss + c.write_miss, c._clk / (c.read_hit + c.write_hit + c.read_miss + c.write_miss) ))
       read_hit_total = read_hit_total + c.read_hit
       read_miss_total = read_miss_total + c.read_miss
       write_hit_total = write_hit_total + c.write_hit

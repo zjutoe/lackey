@@ -199,7 +199,7 @@ function _M:read(addr, cid)
    logd(string.format("%s R: %x %x %x", 
 		      self.name, tag, index, offset))
 
-   local delay = self.read_hit_delay
+   local delay = 0
    local blk = self:search_block(tag, index)
 
    if not blk.tag or blk.tag ~= tag then -- a miss
@@ -210,15 +210,18 @@ function _M:read(addr, cid)
 	 if self.next_level then
 	    local write_back_addr = bit.bor(blk.tag, index)
 	    accessed[write_back_addr] = nil
-	    delay = delay + self.next_level:write(write_back_addr)
+	    delay = delay + self.next_level:write(write_back_addr, 0, cid)
+	 else
+	    delay = delay + self.miss_delay
 	 end
       end
 
       -- coherence
       if self.peers then
 	 local peer_response = false
+	 delay = delay + self.coherent_delay
 	 for _, c in pairs(self.peers) do
-	    local b, d = c:msi_read_response(tag, index)
+	    local b, d = c:msi_read_response(tag, index, cid)
 	    if b then		-- a peer cache response with a valid block
 	       delay = delay + d
 	       peer_response = true
@@ -227,8 +230,16 @@ function _M:read(addr, cid)
 	 end			-- for 
 	 if not peer_response then	-- no peer cache responses, resort to next level cache
 	    if self.next_level then
-	       delay = delay + self.next_level:read(addr)
+	       delay = delay + self.next_level:read(addr, cid)
+	    else
+	       delay = delay + self.miss_delay
 	    end
+	 end
+      else			-- no coherence
+	 if self.next_level then
+	    delay = delay + self.next_level:read(addr, cid)
+	 else
+	    delay = delay + self.miss_delay
 	 end
       end -- if self.peers
       blk.tag = tag
@@ -241,6 +252,7 @@ function _M:read(addr, cid)
 	 self.read_hit_const = self.read_hit_const + 1
 	 access_cores[cid] = true
       end
+      delay = delay + self.read_hit_delay
       self.read_hit = self.read_hit + 1
    end
 
@@ -256,7 +268,7 @@ function _M:write(addr, val, cid)
 		      self.name, tag, index, offset))
 
    local blk = self:search_block(tag, index)
-   local delay = self.write_hit_delay
+   local delay = 0
 
    if not blk.tag or blk.tag ~= tag then -- a miss
       accessed[bit.bor(tag, index)] = {cid = true}
@@ -266,27 +278,37 @@ function _M:write(addr, val, cid)
 	 if self.next_level then
 	    local write_back_addr = bit.bor(blk.tag, index)
 	    accessed[write_back_addr] = nil
-	    delay = delay + self.next_level:write(write_back_addr)
+	    delay = delay + self.next_level:write(write_back_addr, 0, cid)
+	 else
+	    delay = delay + self.miss_delay
 	 end
       end
 
       -- for blk.status == 'S' or 'I', just evict without writing back
 
+      -- coherence
       if self.peers then
 	 local peer_response = false
+	 delay = delay + self.coherent_delay
 	 for _, c in pairs(self.peers) do
-	    local b, d = c:msi_write_response(tag, index)
+	    local b, d = c:msi_write_response(tag, index, cid)
 	    if b then		-- a peer cache response with a valid block
 	       peer_response = true
 	    end
 	 end -- for each peer cache
 	 if not peer_response then	-- no peer cache responses, resort to next level cache
 	    if self.next_level then
-	       delay = delay + self.next_level:read(addr)
-	    end
-	 else
-	    delay = delay + self.coherent_delay
+	       delay = delay + self.next_level:read(addr, cid)
+	    else
+	       delay = delay + self.miss_delay
+	    end	    
 	 end
+      else			-- no coherence
+	 if self.next_level then
+	    delay = delay + self.next_level:read(addr, cid)
+	 else
+	    delay = delay + self.miss_delay
+	 end	    
       end -- if self.peers
 
       blk.tag = tag
@@ -298,12 +320,14 @@ function _M:write(addr, val, cid)
 	 self.write_hit_const = self.write_hit_const + 1
 	 access_cores[cid] = true
       end
-
+      
+      delay = delay + self.write_hit_delay
       self.write_hit = self.write_hit + 1
 
+      -- FIXME we shall also account this delay
       if self.peers and blk.status ~= 'M' then -- blk.status == 'S', need to invalidate peer blocks
 	 for _, c in pairs(self.peers) do
-	    local b, d = c:msi_write_response(tag, index)
+	    local b, d = c:msi_write_response(tag, index, cid)
 	 end -- for each peer cache
       end      
    end -- not blk.tag or blk.tag ~= tag
@@ -315,7 +339,7 @@ function _M:write(addr, val, cid)
    return delay
 end
 
-function _M:msi_read_response(tag, index)
+function _M:msi_read_response(tag, index, cid)
    local delay = self.coherent_delay
 
    local blk = nil
@@ -325,7 +349,7 @@ function _M:msi_read_response(tag, index)
 	 if b.tag == tag then
 	    if b.status == 'M' then
 	       local write_back_addr = bit.bor(tag, index)
-	       delay = delay + self.next_level:write(write_back_addr)
+	       delay = delay + self.next_level:write(write_back_addr, 0, cid)
 	       b.status = 'S'
 	       blk = b
 	    elseif b.status == 'S' then
@@ -344,7 +368,7 @@ function _M:msi_read_response(tag, index)
    return blk, delay
 end
 
-function _M:msi_write_response(tag, index)
+function _M:msi_write_response(tag, index, cid)
    local delay = self.coherent_delay
 
    local blk = nil
@@ -354,7 +378,7 @@ function _M:msi_write_response(tag, index)
 	 if b.tag == tag then
 	    if b.status == 'M' then
 	       local write_back_addr = bit.bor(tag, index)
-	       delay = delay + self.next_level:write(write_back_addr)
+	       delay = delay + self.next_level:write(write_back_addr, 0, cid) -- we don't care about the written val
 	       b.status = 'I'
 	       blk = b
 	    elseif b.status == 'S' then

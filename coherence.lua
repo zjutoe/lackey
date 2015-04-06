@@ -34,11 +34,11 @@ function issue(iss)
 	    local L1 = l1_cache_list[tonumber(cid)]
 	    if rw == 'W' then
 	       logd("---W----")
-	       delay = L1:write(tonumber(addr, 16))
+	       delay = L1:write(tonumber(addr, 16), 0, tonumber(cid))
 	       logd("---W----")
 	    elseif rw == 'R' then
 	       logd("---R----")
-	       delay = L1:read(tonumber(addr, 16))
+	       delay = L1:read(tonumber(addr, 16), tonumber(cid))
 	       logd("---R----")
 	    end
 	    logd('delay', delay)
@@ -84,6 +84,7 @@ function summarize(cache_list)
       print(c.name)
       print("read hit/miss:", c.read_hit, c.read_miss, "miss rate:", c.read_miss / (c.read_hit + c.read_miss))
       print("write hit/miss:", c.write_hit, c.write_miss, "miss rate:", c.write_miss / (c.write_hit + c.write_miss))
+      print(string.format("clk/access: %d / %d : %.4f", c._clk, c.read_hit + c.write_hit + c.read_miss + c.write_miss, c._clk / (c.read_hit + c.write_hit + c.read_miss + c.write_miss) ))
       read_hit_total = read_hit_total + c.read_hit
       read_miss_total = read_miss_total + c.read_miss
       write_hit_total = write_hit_total + c.write_hit
