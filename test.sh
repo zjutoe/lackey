@@ -7,11 +7,13 @@ LACKEY_LOG="$TFOLD/lackey".log
 META_ROB_LOG="$TFOLD/meta_rob".log
 OOO_LOG="$TFOLD/ooo".log
 MEM_REF_LOG="$TFOLD/mtrace".log
-COHERENCE_LOG="$TFOLD/coherence".log
+COHERENCE_LOG="$TFOLD/ca_coherence".log
+SHARED_L1_LOG="$TFOLD/ca_shared_L1".log
 
 
 valgrind --log-file=$LACKEY_LOG --tool=lackey --trace-mem=yes --trace-superblocks=yes --detailed-counts=yes $@ 
 luajit meta_rob.lua -c4 -s50 -d64 < $LACKEY_LOG > $META_ROB_LOG 
 #luajit ooo.lua $META_ROB_LOG > $OOO_LOG
 luajit mtrace.lua $META_ROB_LOG >$MEM_REF_LOG
-luajit coherence.lua < $MEM_REF_LOG > $COHERENCE_LOG
+luajit ca_coherence.lua < $MEM_REF_LOG > $COHERENCE_LOG
+luajit ca_shared_L1.lua < $MEM_REF_LOG > $SHARED_L1_LOG
