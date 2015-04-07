@@ -35,7 +35,7 @@ name = "MEM"			-- example cache of 8KB
 word_size = 4			-- word size in bytes
 blk_size = 64			-- block size in bytes, 2^6
 n_blks = 128			-- n_blks, 2^7
-assoc = 4			-- assoc
+assoc = 8			-- assoc
 -- write_back = true		-- write_back
 next_level = nil
 

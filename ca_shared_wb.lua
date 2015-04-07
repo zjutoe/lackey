@@ -20,6 +20,12 @@ local cache = require "cache"
 -- local l1_cache_list = {L1a, L1b, L1c, L1d}
 local l1_cache_list = dofile("cache/config_b64n64a4_b64n1024a4.lua")
 
+-- the shared write buffer
+local swb = {}
+-- derive from cache
+setmetatable(swb, cache)
+swb.n_blks = 
+
 function issue(iss)
    local max_b_sz = 0
    for _, b in ipairs(iss) do
