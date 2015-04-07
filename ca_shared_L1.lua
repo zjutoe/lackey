@@ -13,27 +13,27 @@ end
 local cache = require "cache"
 
 local L2 = cache:new{
-   name = "L2",			-- L2 of 8KB
-   word_size = 4,		-- word size in bytes
-   blk_size = 64,		-- block size in bytes, 2^6
-   n_blks = 1024,		-- n_blks, 2^10
-   assoc = 8,			-- assoc
+   name = "L2",			-- L2 of 512KB
+   -- word_size = 4,		-- word size in bytes
+   -- blk_size = 64,		-- block size in bytes, 2^6
+   n_blks = 4096,		-- n_blks, 2^12
+   -- assoc = 8,			-- assoc
    read_hit_delay = 10,		-- read delay
    write_hit_delay = 10,	-- write delay
    miss_delay = 40,		-- L3 hit delay
-   coherent_delay = 8,		-- coherent delay
+   -- coherent_delay = 8,		-- coherent delay
    write_back = true,		-- write back
    next_level = nil}		-- next level
 
 local L1 = cache:new{
-   name = "L1",			-- L1 of 8KB
-   word_size = 4,		-- word size in bytes
-   blk_size = 64,		-- block size in bytes, 2^6
-   n_blks = 256,		-- n_blks, 2^8
-   assoc = 8,			-- assoc
-   read_hit_delay = 4,		-- read_delay
-   write_hit_delay = 4,		-- write_delay
-   coherent_delay = 8,		-- coherent delay
+   name = "L1",			-- L1 of 16KB*4
+   -- word_size = 4,		-- word size in bytes
+   -- blk_size = 64,		-- block size in bytes, 2^6
+   n_blks = 1024,		-- n_blks, 2^10
+   -- assoc = 8,			-- assoc
+   -- read_hit_delay = 4,		-- read_delay
+   -- write_hit_delay = 4,		-- write_delay
+   -- coherent_delay = 8,		-- coherent delay
    write_back = true,		-- write_back
    next_level = L2}		-- next_level
 

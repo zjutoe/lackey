@@ -31,13 +31,19 @@ function bit_mask(msb, lsb)
    return bit.band(t, s)	
 end
 
-name = "MEM"			-- example cache of 8KB
+name = "MEM"			-- example cache of 16KB
 word_size = 4			-- word size in bytes
 blk_size = 64			-- block size in bytes, 2^6
-n_blks = 128			-- n_blks, 2^7
+n_blks = 256			-- n_blks, 2^8
 assoc = 8			-- assoc
 -- write_back = true		-- write_back
 next_level = nil
+
+read_hit_delay = 4
+write_hit_delay = 4
+-- read_miss_delay = 5
+-- write_miss_delay = 5
+coherent_delay = 8
 
 read_miss = 0
 read_hit = 0
@@ -46,13 +52,6 @@ write_miss = 0
 write_hit = 0
 write_hit_const = 0
 write_back_cnt = 0
-
-read_hit_delay = 1
-write_hit_delay = 1
--- read_miss_delay = 5
--- write_miss_delay = 5
-coherent_delay = 1
-
 
 -- name, 
 -- word_size, 
