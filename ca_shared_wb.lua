@@ -20,11 +20,23 @@ local cache = require "cache"
 -- local l1_cache_list = {L1a, L1b, L1c, L1d}
 local l1_cache_list = dofile("cache/config_b64n64a4_b64n1024a4.lua")
 
+
 -- the shared write buffer
-local swb = {}
--- derive from cache
-setmetatable(swb, cache)
-swb.n_blks = 
+local swb = cache:new {
+   n_blks = 16,			-- size = 64 * 16 = 2^10
+   assoc = 16,			-- full associativity
+}
+
+swb.read = 
+function (addr, cid) 
+   
+end
+
+swb.write = 
+function (addr, val, cid) 
+   
+end
+
 
 function issue(iss)
    local max_b_sz = 0
