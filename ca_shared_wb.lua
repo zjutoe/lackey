@@ -22,21 +22,20 @@ local l1_cache_list = dofile("cache/config_b64n64a4_b64n1024a4.lua")
 
 
 -- the shared write buffer
-local swb = cache:new {
+local SWB = cache:new {
+   name = "SWB",
    n_blks = 16,			-- size = 64 * 16 = 2^10
-   assoc = 16,			-- full associativity
+   assoc = 4,			-- full associativity
+   miss_delay = 0,		-- 
 }
 
-swb.read = 
-function (addr, cid) 
-   
-end
+-- swb.read = 
+-- function (self, addr, cid)    
+-- end
 
-swb.write = 
-function (addr, val, cid) 
-   
-end
-
+-- swb.write = 
+-- function (self, addr, val, cid)    
+-- end
 
 function issue(iss)
    local max_b_sz = 0
@@ -52,17 +51,19 @@ function issue(iss)
 	    local rw, addr, cid = string.match(line, "(%a) 0x(%x+) (%d)")
 	    logd (line, rw, addr, cid)
 	    local delay = 0
-	    -- print(rw, addr, cid)
 	    local L1 = l1_cache_list[tonumber(cid)]
 	    if rw == 'W' then
 	       logd("---W----")
-	       -- TODO: write to the SWB 1st
+	       local _, hit = SWB:write(tonumber(addr, 16), 0, tonumber(cid))
+	       -- TODO regarding speculative writing, the L1:write should be called on commit
 	       delay = L1:write(tonumber(addr, 16), 0, tonumber(cid))
 	       logd("---W----")
 	    elseif rw == 'R' then
 	       logd("---R----")
-	       -- TODO: check the SWB 1st
-	       delay = L1:read(tonumber(addr, 16), tonumber(cid))
+	       local _, hit = SWB:read(tonumber(addr, 16), tonumber(cid)) 
+	       if not hit then
+		  delay = L1:read(tonumber(addr, 16), tonumber(cid))		  
+	       end
 	       logd("---R----")
 	    end
 	    logd('delay', delay)
@@ -85,10 +86,11 @@ end
 function summarize(cache_list)
    local read_hit_total, read_miss_total, write_hit_total, write_miss_total = 0,0,0,0
    for _, c in pairs(cache_list) do
-      print(c.name)
-      print("read hit/miss:", c.read_hit, c.read_miss, "miss rate:", c.read_miss / (c.read_hit + c.read_miss))
-      print("write hit/miss:", c.write_hit, c.write_miss, "miss rate:", c.write_miss / (c.write_hit + c.write_miss))
-      print(string.format("clk/access: %d / %d : %.4f", c._clk, c.read_hit + c.write_hit + c.read_miss + c.write_miss, c._clk / (c.read_hit + c.write_hit + c.read_miss + c.write_miss) ))
+      c:print_summary()
+      -- print(c.name)
+      -- print("read hit/miss:", c.read_hit, c.read_miss, "miss rate:", c.read_miss / (c.read_hit + c.read_miss))
+      -- print("write hit/miss:", c.write_hit, c.write_miss, "miss rate:", c.write_miss / (c.write_hit + c.write_miss))
+      -- print(string.format("clk/access: %d / %d : %.4f", c._clk, c.read_hit + c.write_hit + c.read_miss + c.write_miss, c._clk / (c.read_hit + c.write_hit + c.read_miss + c.write_miss) ))
       read_hit_total = read_hit_total + c.read_hit
       read_miss_total = read_miss_total + c.read_miss
       write_hit_total = write_hit_total + c.write_hit
@@ -99,5 +101,6 @@ function summarize(cache_list)
 end
 
 -- l1_cache_list[#l1_cache_list + 1] = l2
+summarize({SWB})
 summarize(l1_cache_list)
 summarize({L2})

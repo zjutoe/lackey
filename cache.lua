@@ -8,6 +8,7 @@ local print = print
 local string = string
 local bit = require("bit")
 local debug = debug
+local type = type
 
 module (...)
 
@@ -19,7 +20,8 @@ function logd(...)
 end
 
 function bit_mask(msb, lsb)	
-   if msb <= lsb then return end
+   if msb < lsb then return end
+   if msb == lsb then return 0 end
 
    local t = 0xffffffff
    if msb < 31 then
@@ -198,6 +200,7 @@ function _M:read(addr, cid)
    logd(string.format("%s R: %x %x %x", 
 		      self.name, tag, index, offset))
 
+   local hit = false
    local delay = 0
    local blk = self:search_block(tag, index)
 
@@ -245,6 +248,7 @@ function _M:read(addr, cid)
       blk.status = 'S'
 
    else				-- a hit
+      hit = true
       -- a constructive interference hit
       local access_cores = accessed[bit.bor(tag, index)]
       if access_cores and not access_cores[cid] then
@@ -258,24 +262,26 @@ function _M:read(addr, cid)
    logd(string.format("%s 0x%08x status: %s", self.name, blk.tag + index, blk.status))
 
    self._clk = self._clk + delay
-   return delay
+   return delay, hit
 end
 
 function _M:write(addr, val, cid)
-   local tag, index, offset = self:tag(addr), self:index(addr), self:offset(addr)
-   logd(string.format("%s W: %x %x %x", 
-		      self.name, tag, index, offset))
+   -- local t, idx, off = self:tag(addr), self:index(addr), self:offset(addr)
+   local t = self:tag(addr)
+   local idx = self:index(addr)
+   local off = self:offset(addr)
 
-   local blk = self:search_block(tag, index)
+   local hit = false
+   local blk = self:search_block(tag, idx)
    local delay = 0
 
-   if not blk.tag or blk.tag ~= tag then -- a miss
-      accessed[bit.bor(tag, index)] = {cid = true}
+   if not blk.tag or blk.tag ~= t then -- a miss
+      accessed[bit.bor(t, idx)] = {cid = true}
       self.write_miss = self.write_miss + 1
       
       if blk.status and  blk.status == 'M' then	-- dirty block, need to write back to next level cache
 	 if self.next_level then
-	    local write_back_addr = bit.bor(blk.tag, index)
+	    local write_back_addr = bit.bor(blk.tag, idx)
 	    accessed[write_back_addr] = nil
 	    delay = delay + self.next_level:write(write_back_addr, 0, cid)
 	 else
@@ -290,7 +296,7 @@ function _M:write(addr, val, cid)
 	 local peer_response = false
 	 delay = delay + self.coherent_delay
 	 for _, c in pairs(self.peers) do
-	    local b, d = c:msi_write_response(tag, index, cid)
+	    local b, d = c:msi_write_response(t, idx, cid)
 	    if b then		-- a peer cache response with a valid block
 	       peer_response = true
 	    end
@@ -310,11 +316,12 @@ function _M:write(addr, val, cid)
 	 end	    
       end -- if self.peers
 
-      blk.tag = tag
+      blk.tag = t
 
    else -- a hit
+      hit = true
       -- a constructive interference hit
-      local access_cores = accessed[bit.bor(tag, index)]
+      local access_cores = accessed[bit.bor(t, idx)]
       if access_cores and not access_cores[cid] then
 	 self.write_hit_const = self.write_hit_const + 1
 	 access_cores[cid] = true
@@ -326,16 +333,16 @@ function _M:write(addr, val, cid)
       -- FIXME we shall also account this delay
       if self.peers and blk.status ~= 'M' then -- blk.status == 'S', need to invalidate peer blocks
 	 for _, c in pairs(self.peers) do
-	    local b, d = c:msi_write_response(tag, index, cid)
+	    local b, d = c:msi_write_response(t, idx, cid)
 	 end -- for each peer cache
       end      
-   end -- not blk.tag or blk.tag ~= tag
+   end -- not blk.tag or blk.tag ~= t
 
    blk.status = 'M'
-   logd(string.format("%s 0x%08x status: %s", self.name, blk.tag + index, blk.status))
+   logd(string.format("%s 0x%08x status: %s", self.name, blk.tag + idx, blk.status))
 
    self._clk = self._clk + delay
-   return delay
+   return delay, hit
 end
 
 function _M:msi_read_response(tag, index, cid)
@@ -397,4 +404,11 @@ function _M:msi_write_response(tag, index, cid)
    end
 
    return blk, delay   
+end
+
+function _M:print_summary()
+   print(self.name)
+   print("read hit/miss:", self.read_hit, self.read_miss, "miss rate:", self.read_miss / (self.read_hit + self.read_miss))
+   print("write hit/miss:", self.write_hit, self.write_miss, "miss rate:", self.write_miss / (self.write_hit + self.write_miss))
+   print(string.format("clk/access: %d / %d : %.4f", self._clk, self.read_hit + self.write_hit + self.read_miss + self.write_miss, self._clk / (self.read_hit + self.write_hit + self.read_miss + self.write_miss) ))
 end
