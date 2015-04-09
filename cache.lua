@@ -408,7 +408,8 @@ end
 
 function _M:print_summary()
    print(self.name)
-   print("read hit/miss:", self.read_hit, self.read_miss, "miss rate:", self.read_miss / (self.read_hit + self.read_miss))
-   print("write hit/miss:", self.write_hit, self.write_miss, "miss rate:", self.write_miss / (self.write_hit + self.write_miss))
-   print(string.format("clk/access: %d / %d : %.4f", self._clk, self.read_hit + self.write_hit + self.read_miss + self.write_miss, self._clk / (self.read_hit + self.write_hit + self.read_miss + self.write_miss) ))
+   local read_count, write_count = self.read_hit + self.read_miss, self.write_hit + self.write_miss
+   print("read hit/miss:", self.read_hit, self.read_miss, self.read_hit / read_count)
+   print("write hit/miss:", self.write_hit, self.write_miss, self.write_hit / write_count)
+   print(string.format("clk/access: %d / %d : %.4f", self._clk, read_count + write_count, self._clk / (read_count + write_count) ))
 end

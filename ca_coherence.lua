@@ -58,47 +58,6 @@ while true do
    assert(loadstring(lines))()
 end
 
--- for line in f:lines() do
---    if line:sub(1,2) ~= '--' then
---       local rw, addr, cid = string.match(line, "(%a) 0x(%x+) (%d)")
---       local delay = 0
---       -- print(rw, addr, cid)
---       local L1 = l1_cache_list[tonumber(cid)]
---       if rw == 'W' then
---       	 logd("---W----")
--- 	 delay = L1:write(tonumber(addr, 16))
--- 	 logd("---W----")
---       elseif rw == 'R' then
---       	 logd("---R----")
--- 	 delay = L1:read(tonumber(addr, 16))
--- 	 logd("---R----")
---       end
---       logd('delay', delay)
---    end
--- end
-
-
--- function summarize(cache_list)
---    local read_hit_total, read_miss_total, write_hit_total, write_miss_total = 0,0,0,0
---    for _, c in pairs(cache_list) do
---       print(c.name)
---       print("read hit/miss:", c.read_hit, c.read_miss, "miss rate:", c.read_miss / (c.read_hit + c.read_miss))
---       print("write hit/miss:", c.write_hit, c.write_miss, "miss rate:", c.write_miss / (c.write_hit + c.write_miss))
---       print(string.format("clk/access: %d / %d : %.4f", c._clk, c.read_hit + c.write_hit + c.read_miss + c.write_miss, c._clk / (c.read_hit + c.write_hit + c.read_miss + c.write_miss) ))
---       read_hit_total = read_hit_total + c.read_hit
---       read_miss_total = read_miss_total + c.read_miss
---       write_hit_total = write_hit_total + c.write_hit
---       write_miss_total = write_miss_total + c.write_miss
---    end
---    print("Total read hit/miss:", read_hit_total, read_miss_total, "miss rate:", read_miss_total / (read_hit_total + read_miss_total))
---    print("Total write hit/miss:", write_hit_total, write_miss_total, "miss rate:", write_miss_total / (write_hit_total + write_miss_total))
--- end
-
--- -- l1_cache_list[#l1_cache_list + 1] = l2
--- summarize(l1_cache_list)
--- summarize({L2})
-
-
 local read_hit_total, read_miss_total, write_hit_total, write_miss_total, clk_total = 0,0,0,0,0
 
 function summarize(cache_list)

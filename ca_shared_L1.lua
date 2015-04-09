@@ -83,43 +83,23 @@ while true do
    assert(loadstring(lines))()
 end
 
-
--- local BUFSIZE = 2^8		-- 32K
--- local f = io.input(arg[1])	-- open input file
-
--- for line in f:lines() do
---    if line:sub(1,2) ~= '--' then
---       local rw, addr, cid = string.match(line, "(%a) 0x(%x+) (%d)")
---       local delay = 0
-
---       if rw == 'W' then
---       	 logd("<<<<W<<<<")
--- 	 delay = L1:write(tonumber(addr, 16))
--- 	 logd(">>>>W>>>>")
---       elseif rw == 'R' then
---       	 logd("<<<<R<<<<")
--- 	 delay = L1:read(tonumber(addr, 16))
--- 	 logd(">>>>R>>>>")
---       end
---       logd('delay', delay)
---    end
--- end
+local read_hit_total, read_miss_total, write_hit_total, write_miss_total, clk_total = 0,0,0,0,0
 
 function summarize(cache_list)
-   local read_hit_total, read_miss_total, write_hit_total, write_miss_total = 0,0,0,0
    for _, c in pairs(cache_list) do
-      print(c.name)
-      print(string.format( "read hit/hit const/miss: %d / %d / %d : %.4f", c.read_hit, c.read_hit_const, c.read_miss, c.read_miss / (c.read_hit + c.read_miss)))
-      print(string.format("write hit/hit const/miss: %d / %d / %d : %.4f", c.write_hit, c.write_hit_const, c.write_miss, c.write_miss / (c.write_hit + c.write_miss)))
-      print(string.format("clk/access: %d / %d : %.4f", c._clk, c.read_hit + c.write_hit + c.read_miss + c.write_miss, c._clk / (c.read_hit + c.write_hit + c.read_miss + c.write_miss) ))
+      c:print_summary()
+
       read_hit_total = read_hit_total + c.read_hit
       read_miss_total = read_miss_total + c.read_miss
       write_hit_total = write_hit_total + c.write_hit
       write_miss_total = write_miss_total + c.write_miss
+      clk_total = clk_total + c._clk
    end
-   print(string.format("Total read hit/miss: %d %d : %.4f", read_hit_total, read_miss_total, read_miss_total / (read_hit_total + read_miss_total)))
-   print(string.format("Total write hit/miss: %d %d : %.4f", write_hit_total, write_miss_total, write_miss_total / (write_hit_total + write_miss_total)))
 end
 
-summarize{L1}
+summarize({L1})
+
+print("Total read hit/miss:", read_hit_total, read_miss_total, "miss rate:", read_miss_total / (read_hit_total + read_miss_total))
+print("Total write hit/miss:", write_hit_total, write_miss_total, "miss rate:", write_miss_total / (write_hit_total + write_miss_total))
+print("Total clk/access:", clk_total, read_hit_total + write_hit_total, clk_total/(read_hit_total + write_hit_total))
 

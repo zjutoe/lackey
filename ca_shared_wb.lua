@@ -24,8 +24,8 @@ local l1_cache_list = dofile("cache/config_b64n64a4_b64n1024a4.lua")
 -- the shared write buffer
 local SWB = cache:new {
    name = "SWB",
-   n_blks = 16,			-- size = 64 * 16 = 2^10
-   assoc = 4,			-- full associativity
+   n_blks = 64,			-- size = 64 * 64 = 2^12 = 4K
+   assoc = 4,			-- 
    miss_delay = 0,		-- 
 }
 
