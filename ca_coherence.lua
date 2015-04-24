@@ -16,6 +16,8 @@ local cache = require "cache"
 -- local l1_cache_list = {L1a, L1b, L1c, L1d}
 local l1_cache_list = dofile("cache/config_b64n64a4_b64n1024a4.lua")
 
+local delay_cnt, access_cnt = 0,0
+
 function issue(iss)
    local max_b_sz = 0
    for _, b in ipairs(iss) do
@@ -41,7 +43,12 @@ function issue(iss)
 	       delay = L1:read(tonumber(addr, 16), tonumber(cid))
 	       logd("---R----")
 	    end
+
 	    logd('delay', delay)
+	    if rw == 'W' or rw == 'R' then
+	       delay_cnt = delay_cnt + delay
+	       access_cnt = access_cnt + 1
+	    end
 	 end
       end
    end
@@ -84,3 +91,4 @@ summarize(clist)
 print("Total read hit/miss:", read_hit_total, read_miss_total, "miss rate:", read_miss_total / (read_hit_total + read_miss_total))
 print("Total write hit/miss:", write_hit_total, write_miss_total, "miss rate:", write_miss_total / (write_hit_total + write_miss_total))
 print("Total clk/access:", clk_total, read_hit_total + write_hit_total, clk_total/(read_hit_total + write_hit_total))
+print("Delay/Access:", delay_cnt, access_cnt, delay_cnt/access_cnt)

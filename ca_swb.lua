@@ -26,14 +26,12 @@ local l1_cache_list = dofile("cache/config_b64n64a4_b64n1024a4.lua")
 -- next-level on eviction. Neither read nor write will read from L1.
 local SWB = cache:new {
    name = "SWB",
-   blk_size = 64,		-- a block contains only a word
-   n_blks = 64,			-- size = 64 * 64 = 2^12 = 4K
-   assoc = 4,			-- 
+   blk_size = 4,		-- a block contains only a word
+   n_blks = 1024,		-- size = 64 * 64 = 2^12 = 4K
+   assoc = 64,			-- 
    miss_delay = 0,		-- 
 }
 
--- which core (meet a miss and) load this block of data 1st.
-local accessed = {}
 
 SWB.read = 
 function (self, addr, cid)
@@ -46,19 +44,13 @@ function (self, addr, cid)
    local blk = self:search_block(tag, index)
 
    if not blk.tag or blk.tag ~= tag then -- a miss, do nothing else here. will resort to L1
-      accessed[bit.bor(tag, index)] = {cid = true}
       self.read_miss = self.read_miss + 1
    else				-- a hit
       hit = true
-      -- a constructive interference hit
-      local access_cores = accessed[bit.bor(tag, index)]
-      if access_cores and not access_cores[cid] then
-	 self.read_hit_const = self.read_hit_const + 1
-	 access_cores[cid] = true
-      end
-      delay = delay + self.read_hit_delay
       self.read_hit = self.read_hit + 1
    end
+
+   delay = delay + self.read_hit_delay
 
    logd(string.format("%s 0x%08x status: %s", self.name, (blk.tag or 0) + index, blk.status))
 
@@ -78,38 +70,24 @@ function (self, addr, val, cid)
    local delay = 0
 
    if not blk.tag or blk.tag ~= t then -- a miss
-      accessed[bit.bor(t, idx)] = {cid = true}
       self.write_miss = self.write_miss + 1      
-
       blk.tag = t
 
    else -- a hit
-      hit = true
-      -- a constructive interference hit
-      local access_cores = accessed[bit.bor(t, idx)]
-      if access_cores and not access_cores[cid] then
-	 self.write_hit_const = self.write_hit_const + 1
-	 access_cores[cid] = true
-      end
-      
-      delay = delay + self.write_hit_delay
+      hit = true      
       self.write_hit = self.write_hit + 1
 
-      -- FIXME we shall also account this delay
-      if self.peers and blk.status ~= 'M' then -- blk.status == 'S', need to invalidate peer blocks
-	 for _, c in pairs(self.peers) do
-	    local b, d = c:msi_write_response(t, idx, cid)
-	 end -- for each peer cache
-      end      
    end -- not blk.tag or blk.tag ~= t
 
-   blk.status = 'M'
-   logd(string.format("%s 0x%08x status: %s", self.name, (blk.tag or 0) + idx, blk.status))
+   delay = delay + self.write_hit_delay
+
+   logd(string.format("%s 0x%08x", self.name, (blk.tag or 0) + idx))
 
    self._clk = self._clk + delay
    return delay, hit
 end
 
+local delay_cnt, access_cnt = 0,0
 
 function issue(iss)
    local max_b_sz = 0
@@ -118,29 +96,33 @@ function issue(iss)
    end
    
    for i = 1, max_b_sz do
+      local delay, hit
       -- round robin with the cores, to simulate the parallel execution
       for _, b in ipairs(iss) do
 	 line = b[i]
 	 if line then	 	-- if not nil
 	    local rw, addr, cid = string.match(line, "(%a) 0x(%x+) (%d)")
 	    logd (line, rw, addr, cid)
-	    local delay = 0
+	    delay = 0
 	    local L1 = l1_cache_list[tonumber(cid)]
 	    if rw == 'W' then
 	       logd("---W----")
-	       local _, hit = SWB:write(tonumber(addr, 16), 0, tonumber(cid))
-	       -- TODO regarding speculative writing, the L1:write should be called on commit
-	       delay = L1:write(tonumber(addr, 16), 0, tonumber(cid))
+	       delay, hit = SWB:write(tonumber(addr, 16), 0, tonumber(cid))
 	       logd("---W----")
 	    elseif rw == 'R' then
 	       logd("---R----")
-	       local _, hit = SWB:read(tonumber(addr, 16), tonumber(cid)) 
+	       delay, hit = SWB:read(tonumber(addr, 16), tonumber(cid)) 
 	       if not hit then
 		  delay = L1:read(tonumber(addr, 16), tonumber(cid))		  
 	       end
 	       logd("---R----")
 	    end
+	    
 	    logd('delay', delay)
+	    if rw == 'W' or rw == 'R' then
+	       delay_cnt = delay_cnt + delay
+	       access_cnt = access_cnt + 1
+	    end
 	 end
       end
    end
@@ -183,3 +165,4 @@ summarize(clist)
 print("Total read hit/miss:", read_hit_total, read_miss_total, "miss rate:", read_miss_total / (read_hit_total + read_miss_total))
 print("Total write hit/miss:", write_hit_total, write_miss_total, "miss rate:", write_miss_total / (write_hit_total + write_miss_total))
 print("Total clk/access:", clk_total, read_hit_total + write_hit_total, clk_total/(read_hit_total + write_hit_total))
+print("Delay/Access:", delay_cnt, access_cnt, delay_cnt/access_cnt)
