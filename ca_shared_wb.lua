@@ -21,7 +21,9 @@ local cache = require "cache"
 local l1_cache_list = dofile("cache/config_b64n64a4_b64n1024a4.lua")
 
 
--- the shared write buffer
+-- the shared write buffer. TODO the read and write functions should
+-- override: read will not go to next-level (L1), write will go to
+-- next-level on eviction. Neither read nor write will read from L1.
 local SWB = cache:new {
    name = "SWB",
    n_blks = 64,			-- size = 64 * 64 = 2^12 = 4K
