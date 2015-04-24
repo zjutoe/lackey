@@ -26,18 +26,90 @@ local l1_cache_list = dofile("cache/config_b64n64a4_b64n1024a4.lua")
 -- next-level on eviction. Neither read nor write will read from L1.
 local SWB = cache:new {
    name = "SWB",
+   blk_size = 64,		-- a block contains only a word
    n_blks = 64,			-- size = 64 * 64 = 2^12 = 4K
    assoc = 4,			-- 
    miss_delay = 0,		-- 
 }
 
--- swb.read = 
--- function (self, addr, cid)    
--- end
+-- which core (meet a miss and) load this block of data 1st.
+local accessed = {}
 
--- swb.write = 
--- function (self, addr, val, cid)    
--- end
+SWB.read = 
+function (self, addr, cid)
+   local tag, index, offset = self:tag(addr), self:index(addr), self:offset(addr)
+   logd(string.format("%s R: %x %x %x", 
+		      self.name, tag, index, offset))
+
+   local hit = false
+   local delay = 0
+   local blk = self:search_block(tag, index)
+
+   if not blk.tag or blk.tag ~= tag then -- a miss, do nothing else here. will resort to L1
+      accessed[bit.bor(tag, index)] = {cid = true}
+      self.read_miss = self.read_miss + 1
+   else				-- a hit
+      hit = true
+      -- a constructive interference hit
+      local access_cores = accessed[bit.bor(tag, index)]
+      if access_cores and not access_cores[cid] then
+	 self.read_hit_const = self.read_hit_const + 1
+	 access_cores[cid] = true
+      end
+      delay = delay + self.read_hit_delay
+      self.read_hit = self.read_hit + 1
+   end
+
+   logd(string.format("%s 0x%08x status: %s", self.name, (blk.tag or 0) + index, blk.status))
+
+   self._clk = self._clk + delay
+   return delay, hit
+end
+
+SWB.write = 
+function (self, addr, val, cid)
+   -- local t, idx, off = self:tag(addr), self:index(addr), self:offset(addr)
+   local t = self:tag(addr)
+   local idx = self:index(addr)
+   local off = self:offset(addr)
+
+   local hit = false
+   local blk = self:search_block(tag, idx)
+   local delay = 0
+
+   if not blk.tag or blk.tag ~= t then -- a miss
+      accessed[bit.bor(t, idx)] = {cid = true}
+      self.write_miss = self.write_miss + 1      
+
+      blk.tag = t
+
+   else -- a hit
+      hit = true
+      -- a constructive interference hit
+      local access_cores = accessed[bit.bor(t, idx)]
+      if access_cores and not access_cores[cid] then
+	 self.write_hit_const = self.write_hit_const + 1
+	 access_cores[cid] = true
+      end
+      
+      delay = delay + self.write_hit_delay
+      self.write_hit = self.write_hit + 1
+
+      -- FIXME we shall also account this delay
+      if self.peers and blk.status ~= 'M' then -- blk.status == 'S', need to invalidate peer blocks
+	 for _, c in pairs(self.peers) do
+	    local b, d = c:msi_write_response(t, idx, cid)
+	 end -- for each peer cache
+      end      
+   end -- not blk.tag or blk.tag ~= t
+
+   blk.status = 'M'
+   logd(string.format("%s 0x%08x status: %s", self.name, (blk.tag or 0) + idx, blk.status))
+
+   self._clk = self._clk + delay
+   return delay, hit
+end
+
 
 function issue(iss)
    local max_b_sz = 0
