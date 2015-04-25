@@ -218,8 +218,7 @@ function _M:read(addr, cid)
 	 end
       end
 
-      -- coherence
-      if self.peers then
+      if self.peers then 	-- coherence
 	 local peer_response = false
 	 delay = delay + self.coherent_delay
 	 for _, c in pairs(self.peers) do
@@ -291,8 +290,7 @@ function _M:write(addr, val, cid)
 
       -- for blk.status == 'S' or 'I', just evict without writing back
 
-      -- coherence
-      if self.peers then
+      if self.peers then	-- coherence
 	 local peer_response = false
 	 delay = delay + self.coherent_delay
 	 for _, c in pairs(self.peers) do
