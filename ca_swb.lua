@@ -26,9 +26,9 @@ local l1_cache_list = dofile("cache/config_b64n64a4_b64n1024a4.lua")
 -- next-level on eviction. Neither read nor write will read from L1.
 local SWB = cache:new {
    name = "SWB",
-   blk_size = 4,		-- a block contains only a word
-   n_blks = 1024,		-- size = 64 * 64 = 2^12 = 4K
-   assoc = 64,			-- 
+   blk_size = 64,		-- 
+   n_blks = 16,			-- size = 64 * 16 = 2^10 = 1K
+   assoc = 8,			-- 
    miss_delay = 0,		-- 
 }
 
@@ -70,7 +70,16 @@ function (self, addr, val, cid)
    local delay = 0
 
    if not blk.tag or blk.tag ~= t then -- a miss
-      self.write_miss = self.write_miss + 1      
+      self.write_miss = self.write_miss + 1
+
+      local L1 = l1_cache_list[cid] -- FIXME we shall write to where this dirty data was intended to
+      
+      if blk.status and  blk.status == 'M' then	-- dirty block, need to write back to next level cache
+	 local write_back_addr = bit.bor(blk.tag, idx)
+	 delay = delay + L1:write(write_back_addr, 0, cid)
+      end
+      delay = delay + L1:read(addr, cid)
+
       blk.tag = t
 
    else -- a hit
@@ -81,6 +90,7 @@ function (self, addr, val, cid)
 
    delay = delay + self.write_hit_delay
 
+   blk.status = 'M'
    logd(string.format("%s 0x%08x", self.name, (blk.tag or 0) + idx))
 
    self._clk = self._clk + delay
