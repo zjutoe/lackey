@@ -41,8 +41,8 @@ assoc = 8			-- assoc
 -- write_back = true		-- write_back
 next_level = nil
 
-read_hit_delay = 4
-write_hit_delay = 4
+read_hit_delay = 1
+write_hit_delay = 1
 -- read_miss_delay = 5
 -- write_miss_delay = 5
 coherent_delay = 8
