@@ -29,7 +29,10 @@ local SWB = cache:new {
    blk_size = 64,		-- 
    n_blks = 16,			-- size = 64 * 16 = 2^10 = 1K
    assoc = 8,			-- 
-   miss_delay = 0,		-- 
+   miss_delay = 0,		--
+
+   inter_core_share = 0,    -- statistic data: inter core shared data 
+   inter_core_share_captured = 0, -- statistic data: captured inter core shared data 
 }
 
 
@@ -51,7 +54,10 @@ function (self, addr, cid)
    end
 
    delay = delay + self.read_hit_delay
-
+   if blk.from and blk.from ~= cid then
+      self.inter_core_share = self.inter_core_share + 1
+      if hit then self.inter_core_share_captured = self.inter_core_share_captured + 1 end
+   end
    logd(string.format("%s 0x%08x status: %s", self.name, (blk.tag or 0) + index, blk.status))
 
    self._clk = self._clk + delay
@@ -80,7 +86,7 @@ function (self, addr, val, cid)
       end
       delay = delay + L1:read(addr, cid)
 
-      blk.tag = t
+      blk.tag = t      
 
    else -- a hit
       hit = true      
@@ -88,9 +94,15 @@ function (self, addr, val, cid)
 
    end -- not blk.tag or blk.tag ~= t
 
+   if blk.from and blk.from ~= cid then
+      self.inter_core_share = self.inter_core_share + 1
+      if hit then self.inter_core_share_captured = self.inter_core_share_captured + 1 end	    
+   end
+
    delay = delay + self.write_hit_delay
 
    blk.status = 'M'
+   blk.from = cid
    logd(string.format("%s 0x%08x", self.name, (blk.tag or 0) + idx))
 
    self._clk = self._clk + delay
@@ -123,8 +135,10 @@ function issue(iss)
 	       logd("---R----")
 	       delay, hit = SWB:read(tonumber(addr, 16), tonumber(cid)) 
 	       if not hit then
-		  delay = L1:read(tonumber(addr, 16), tonumber(cid))		  
+		  delay = L1:read(tonumber(addr, 16), tonumber(cid))	  
 	       end
+	       -- issue a read to L1 anyway, but do not count in the delay
+	       L1:read(tonumber(addr, 16), tonumber(cid))
 	       logd("---R----")
 	    end
 	    
@@ -176,3 +190,6 @@ print("Total read hit/miss:", read_hit_total, read_miss_total, "hit rate:", read
 print("Total write hit/miss:", write_hit_total, write_miss_total, "hit rate:", write_hit_total / (write_hit_total + write_miss_total))
 print("Total clk/access:", clk_total, read_hit_total + write_hit_total, clk_total/(read_hit_total + write_hit_total))
 print("Delay/Access:", delay_cnt, access_cnt, delay_cnt/access_cnt)
+print("Inter Core Share/Access:", SWB.inter_core_share, SWB.inter_core_share_captured,
+      SWB.inter_core_share / access_cnt,
+      SWB.inter_core_share_captured / access_cnt)
