@@ -21,6 +21,8 @@ $HOME/doc/paper/p_shared_L1/data/cpu2006_log/specrand_base.amd64-m64-gcc46-3.bin
 $HOME/doc/paper/p_shared_L1/data/cpu2006_log/sphinx_livepretend_base.amd64-m64-gcc46-3.bin/mtrace.log \
 "
 
+export LUA_PATH="../?.lua;;"
+
 for input in $inputs; do
     D=$(dirname $input)
     luajit ca_swb.lua < $input > $D/swb.log
