@@ -1,8 +1,27 @@
 #!/usr/bin/env lua
 
--- TODO: implement a "shared write buffer (SWB)" on parallel with L1
--- cache, so the read/write to L1 is on parallel with access to the
--- SWB.
+-- to support speculative read/write:
+
+-- 1. core id tag: each datum is associated with a core id tag,
+-- indicating its source. when 2 cores writes to the same mem addr,
+-- both datum will be kept in the same set. But we do not divide the
+-- whole cache into 4 regions corresponding to the cores, as that
+-- would waste lots of space.
+
+-- 2. read preference: a core will read a datum according to logical
+-- sequence, from newer to older: a. the datum written by itself;
+-- b. the datum written by its immediate predecessor; c. the datum
+-- written by ealier predecessors, ordered by sequence. So a later
+-- thread will not overwrite the input data of an earlier thread.
+
+-- 3. 
+
+-- 1. write:
+--   a. normal thread: write to block, without setting spec tag 
+--   b. spec thread: write to block, set spec tag
+--   c. location renaming: late threads should not overwrite
+-- 2. read:
+--   a. normal 
 
 -- Usage: 
 
