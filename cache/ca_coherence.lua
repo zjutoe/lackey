@@ -14,7 +14,7 @@ local cache = require "cache"
 
 -- setup the L1 caches according to the config file
 -- local l1_cache_list = {L1a, L1b, L1c, L1d}
-local l1_cache_list = dofile("config/b64n64a4_b64n1024a4.lua")
+local l1_cache_list = require "config/b64n64a4_b64n1024a4"
 
 local delay_cnt, access_cnt = 0,0
 
