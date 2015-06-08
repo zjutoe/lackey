@@ -2,6 +2,8 @@
 
 -- to support speculative read/write:
 
+-- to compare with blocking mode: block when encountering RAW dependences. 
+
 -- 1. core id tag: each datum is associated with a core id tag,
 -- indicating its source. when 2 cores writes to the same mem addr,
 -- both datum will be kept in the same set. But we do not divide the
@@ -14,7 +16,11 @@
 -- written by ealier predecessors, ordered by sequence. So a later
 -- thread will not overwrite the input data of an earlier thread.
 
--- 3. 
+-- 3. a duplication buffer (rename buffer) to hold the output from
+-- "later" cores, so they will not overwrite that of the
+-- non-speculative core, and could be merged to the normal cache line
+-- later. Or not merge, but just keep them in the dup buffer, and
+-- accessed via some directory based renaming mechanism.
 
 -- 1. write:
 --   a. normal thread: write to block, without setting spec tag 
@@ -51,7 +57,8 @@ local SWB = cache:new {
    miss_delay = 0,		--
 
    inter_core_share = 0,    -- statistic data: inter core shared data 
-   inter_core_share_captured = 0, -- statistic data: captured inter core shared data 
+   inter_core_share_captured = 0, -- statistic data: captured inter core shared data
+   line_dup = 0,
 }
 
 
@@ -115,7 +122,10 @@ function (self, addr, val, cid)
 
    if blk.from and blk.from ~= cid then
       self.inter_core_share = self.inter_core_share + 1
-      if hit then self.inter_core_share_captured = self.inter_core_share_captured + 1 end	    
+      if hit then
+	 self.inter_core_share_captured = self.inter_core_share_captured + 1
+	 self.line_dup = self.line_dup + 1
+      end
    end
 
    delay = delay + self.write_hit_delay
@@ -212,3 +222,4 @@ print("Delay/Access:", delay_cnt, access_cnt, delay_cnt/access_cnt)
 print("Inter Core Share/Access:", SWB.inter_core_share, SWB.inter_core_share_captured,
       SWB.inter_core_share / access_cnt,
       SWB.inter_core_share_captured / access_cnt)
+print("Line Duplicate/Access:", SWB.line_dup, access_cnt, SWB.line_dup / access_cnt)
