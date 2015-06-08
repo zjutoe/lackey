@@ -130,7 +130,7 @@ function _M:read_block(blk, offset, tag, val, need_wb)
    blk.atime = self._clk
 end
 
--- TODO: optimize by reduce {} number
+-- TODO: optimize by reducing {} number
 function _M:search_block(tag, index)
    -- logd(self.name..' S', tag, index)
 
@@ -218,6 +218,7 @@ function _M:read(addr, cid)
 	 end
       end
 
+      -- TODO refactor
       if self.peers then 	-- coherence
 	 local peer_response = false
 	 delay = delay + self.coherent_delay
@@ -290,6 +291,7 @@ function _M:write(addr, val, cid)
 
       -- for blk.status == 'S' or 'I', just evict without writing back
 
+      -- TODO refactor
       if self.peers then	-- coherence
 	 local peer_response = false
 	 delay = delay + self.coherent_delay
@@ -343,6 +345,7 @@ function _M:write(addr, val, cid)
    return delay, hit
 end
 
+-- TODO refactor, remove duplication with msi_write_response()
 function _M:msi_read_response(tag, index, cid)
    local delay = self.coherent_delay
 
