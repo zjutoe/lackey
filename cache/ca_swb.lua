@@ -64,8 +64,6 @@ local SWB = cache:new {
 }
 
 
-
-
 SWB.read = 
 function (self, addr, cid)
    local tag, index, offset = self:tag(addr), self:index(addr), self:offset(addr)
@@ -106,8 +104,9 @@ function (self, addr, cid)
    return delay, hit
 end
 
+-- TODO mark the spec field when writing
 SWB.write = 
-function (self, addr, val, cid)
+function (self, addr, val, cid, spec)
    -- local t, idx, off = self:tag(addr), self:index(addr), self:offset(addr)
    local t = self:tag(addr)
    local idx = self:index(addr)
@@ -128,7 +127,8 @@ function (self, addr, val, cid)
       self.write_miss = self.write_miss + 1
 
       local L1 = l1_cache_list[blk.from or cid]
-      if blk.status and  blk.status == 'M' then	-- dirty block, need to write back to next level cache
+      -- dirty block, need to write back to next level cache
+      if blk.status and  blk.status == 'M' and not blk.spec then
 	 local write_back_addr = bit.bor(blk.tag, idx)
 	 delay = delay + L1:write(write_back_addr, 0, blk.from or cid)
       end
