@@ -59,7 +59,11 @@ local SWB = cache:new {
    inter_core_share = 0,    -- statistic data: inter core shared data 
    inter_core_share_captured = 0, -- statistic data: captured inter core shared data
    line_dup = 0,
+
+   rename_buffer = {}
 }
+
+
 
 
 SWB.read = 
@@ -71,6 +75,17 @@ function (self, addr, cid)
    local hit = false
    local delay = 0
    local blk = self:search_block(tag, index)
+
+   local rnb_hit = self.rename_buffer[addr]
+   if rnb_hit then
+      for pred = cid, 1, -1 do
+	 if rnb_hit[pred] then
+	    hit = true
+	    self.read_hit = self.read_hit + 1
+	    return self.read_hit_delay, hit
+	 end
+      end
+   end
 
    if not blk.tag or blk.tag ~= tag then -- a miss, do nothing else here. will resort to L1
       self.read_miss = self.read_miss + 1
@@ -104,11 +119,10 @@ function (self, addr, val, cid)
    if not blk.tag or blk.tag ~= t then -- a miss
       self.write_miss = self.write_miss + 1
 
-      local L1 = l1_cache_list[cid] -- FIXME we shall write to where this dirty data was intended to
-      
+      local L1 = l1_cache_list[blk.from or cid]
       if blk.status and  blk.status == 'M' then	-- dirty block, need to write back to next level cache
 	 local write_back_addr = bit.bor(blk.tag, idx)
-	 delay = delay + L1:write(write_back_addr, 0, cid)
+	 delay = delay + L1:write(write_back_addr, 0, blk.from or cid)
       end
       delay = delay + L1:read(addr, cid)
 
@@ -125,6 +139,13 @@ function (self, addr, val, cid)
       if hit then
 	 self.inter_core_share_captured = self.inter_core_share_captured + 1
 	 self.line_dup = self.line_dup + 1
+
+	 -- TODO support multiple copies of the same address
+	 if self.rename_buffer[addr] then
+	    self.rename_buffer[addr][cid] = val
+	 else
+	    self.rename_buffer[addr] = {cid = val}
+	 end
       end
    end
 
