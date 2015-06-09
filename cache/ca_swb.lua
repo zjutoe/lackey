@@ -74,7 +74,6 @@ function (self, addr, cid)
 
    local hit = false
    local delay = 0
-   local blk = self:search_block(tag, index)
 
    local rnb_hit = self.rename_buffer[addr]
    if rnb_hit then
@@ -86,6 +85,8 @@ function (self, addr, cid)
 	 end
       end
    end
+
+   local blk = self:search_block(tag, index)
 
    if not blk.tag or blk.tag ~= tag then -- a miss, do nothing else here. will resort to L1
       self.read_miss = self.read_miss + 1
@@ -113,8 +114,15 @@ function (self, addr, val, cid)
    local off = self:offset(addr)
 
    local hit = false
-   local blk = self:search_block(tag, idx)
    local delay = 0
+
+   local rnb_hit = self.rename_buffer[addr]
+   if rnb_hit then
+      rnb_hit[cid] = val
+      return self.write_hit_delay, hit	 
+   end
+
+   local blk = self:search_block(tag, idx)
 
    if not blk.tag or blk.tag ~= t then -- a miss
       self.write_miss = self.write_miss + 1
@@ -157,6 +165,17 @@ function (self, addr, val, cid)
 
    self._clk = self._clk + delay
    return delay, hit
+end
+
+SWB.commit = 
+function (cid)
+      for _, set in pairs (self.__sets) do
+	 for _, blk in pairs(set) do
+	    if blk.from == cid then
+	       blk.spec = false
+	    end
+	 end
+      end
 end
 
 local delay_cnt, access_cnt = 0,0
