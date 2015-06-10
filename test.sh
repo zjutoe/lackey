@@ -20,4 +20,4 @@ luajit meta_rob.lua -c4 -s50 -d64 < $LACKEY_LOG > $META_ROB_LOG
 luajit mtrace.lua $META_ROB_LOG >$MEM_REF_LOG
 luajit cache/ca_coherence.lua < $MEM_REF_LOG > $COHERENCE_LOG
 luajit cache/ca_shared_L1.lua < $MEM_REF_LOG > $SHARED_L1_LOG
-luajit cache/ca_swb.lua < $MEM_REF_LOG > $SWB_LOG
+luajit cache/test_swb.lua < $MEM_REF_LOG > $SWB_LOG
