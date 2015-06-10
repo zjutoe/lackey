@@ -17,50 +17,83 @@ require ("ca_swb")
    
 -- end
 
+local Core = require("core")
+
+local NUM_CORE = 4
+local cores = {}
+for cid = 1, NUM_CORE do
+   cores[cid] = Core:new{id = cid, swb = SWB, L1_cache = ls_cache_list}
+end
 
 
-local delay_cnt, access_cnt = 0,0
-
-function issue(iss)
-   local max_b_sz = 0
-   for _, b in ipairs(iss) do
-      if max_b_sz < #b then max_b_sz = #b end
+function issue(blks)
+   -- assume the blks are sequentially (with core id) organized
+   for cid, blk in ipairs(blks) do
+      cores[cid]:issue_code_block(blk)
    end
-   
-   for i = 1, max_b_sz do
-      local delay, hit
-      -- round robin with the cores, to simulate the parallel execution
-      for _, b in ipairs(iss) do
-	 line = b[i]
-	 if line then	 	-- if not nil
-	    local rw, addr, cid = string.match(line, "(%a) 0x(%x+) (%d)")
-	    logd (line, rw, addr, cid)
-	    delay = 0
-	    local L1 = l1_cache_list[tonumber(cid)]
-	    if rw == 'W' then
-	       logd("---W----")
-	       delay, hit = SWB:write(tonumber(addr, 16), 0, tonumber(cid))
-	       logd("---W----")
-	    elseif rw == 'R' then
-	       logd("---R----")
-	       delay, hit = SWB:read(tonumber(addr, 16), tonumber(cid)) 
-	       if not hit then
-		  delay = L1:read(tonumber(addr, 16), tonumber(cid))	  
-	       end
-	       -- issue a read to L1 anyway, but do not count in the delay
-	       L1:read(tonumber(addr, 16), tonumber(cid))
-	       logd("---R----")
-	    end
-	    
-	    logd('delay', delay)
-	    if rw == 'W' or rw == 'R' then
-	       delay_cnt = delay_cnt + delay
-	       access_cnt = access_cnt + 1
-	    end
+
+   local pc = 0
+   -- the leading core is non-speculative
+   cores[1].spec = false
+   -- now execute the blocks until all cores finish
+   local finished = false
+   while not finished do
+      for cid = 1, #blks do
+	 finished = true
+	 local core = cores[cid]
+	 if core.active then
+	    local new_pc = core:proceed()
+	    if pc < new_pc then pc = new_pc end
+	    if core.active then finished = false end
 	 end
       end
    end
 end
+
+
+
+local delay_cnt, access_cnt = 0,0
+
+-- function issue(iss)
+--    local max_b_sz = 0
+--    for _, b in ipairs(iss) do
+--       if max_b_sz < #b then max_b_sz = #b end
+--    end
+   
+--    for i = 1, max_b_sz do
+--       local delay, hit
+--       -- round robin with the cores, to simulate the parallel execution
+--       for _, b in ipairs(iss) do
+-- 	 line = b[i]
+-- 	 if line then	 	-- if not nil
+-- 	    local rw, addr, cid = string.match(line, "(%a) 0x(%x+) (%d)")
+-- 	    logd (line, rw, addr, cid)
+-- 	    delay = 0
+-- 	    local L1 = l1_cache_list[tonumber(cid)]
+-- 	    if rw == 'W' then
+-- 	       logd("---W----")
+-- 	       delay, hit = SWB:write(tonumber(addr, 16), 0, tonumber(cid))
+-- 	       logd("---W----")
+-- 	    elseif rw == 'R' then
+-- 	       logd("---R----")
+-- 	       delay, hit = SWB:read(tonumber(addr, 16), tonumber(cid)) 
+-- 	       if not hit then
+-- 		  delay = L1:read(tonumber(addr, 16), tonumber(cid))	  
+-- 	       end
+-- 	       -- issue a read to L1 anyway, but do not count in the delay
+-- 	       L1:read(tonumber(addr, 16), tonumber(cid))
+-- 	       logd("---R----")
+-- 	    end
+	    
+-- 	    logd('delay', delay)
+-- 	    if rw == 'W' or rw == 'R' then
+-- 	       delay_cnt = delay_cnt + delay
+-- 	       access_cnt = access_cnt + 1
+-- 	    end
+-- 	 end
+--       end
+--    end
+-- end
 
 local BUFSIZE = 2^15		-- 32K
 local f = io.input(arg[1])	-- open input file
