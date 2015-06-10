@@ -10,9 +10,9 @@ local g_cid = 0
 
 function micro(m)   
    if m.op == "L" then
-      io.write('"R ' ..string.format('0x%08x', m.i).. ' ' .. g_cid .. '",')
+      io.write('"R ' ..string.format('0x%08x', m.i).. ' ' .. g_cid .. ' ' .. m.pc .. '",')
    elseif m.op == "S" then
-      io.write('"W ' ..string.format('0x%08x', m.o).. ' ' .. g_cid .. '",')
+      io.write('"W ' ..string.format('0x%08x', m.o).. ' ' .. g_cid .. ' ' .. m.pc .. '",')
    end
 end
 
