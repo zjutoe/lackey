@@ -6,6 +6,10 @@
 function __FILE__() return debug.getinfo(2,'S').source end
 function __LINE__() return debug.getinfo(2, 'l').currentline end
 
+-- local logd = print
+local logd = function(...) end
+
+
 require("ca_swb")
 local Core = require("core")
 
@@ -39,6 +43,10 @@ function begin_issue(issue)
 end
 
 function end_issue()
+   logd('c1  c2  c3  c4')
+   logd(cores[1].active, cores[2].active, cores[3].active, cores[4].active)
+   logd(#(cores[1].icache), #(cores[2].icache), #(cores[3].icache), #(cores[4].icache))
+
    -- execute all cores in Round-Robin
    repeat 
       local exe_end = true
