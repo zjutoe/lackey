@@ -21,7 +21,6 @@ end
 
 id = 0				-- init with invalid core id
 
-
 function _M:new (obj)
    logd('new')
 
@@ -48,41 +47,34 @@ end
 --]]
 
 function _M:exe_inst()
-   mic = self.icache[self.iidx]
+   local mic = self.icache[self.iidx]
+   local delay = 0
 
    if mic then
-      if mic.op == 'W' then
-      elseif 
-   end
-
-   self.iidx = self.iidx + 1
-
-   if line then	 	-- if not nil
-      local rw, addr, cid = string.match(line, "(%a) 0x(%x+) (%d)")
-      logd (line, rw, addr, cid)
       delay = 0
-      local L1 = l1_cache_list[tonumber(cid)]
-      if rw == 'W' then
-	 logd("---W----")
-	 delay, hit = SWB:write(tonumber(addr, 16), 0, tonumber(cid))
-	 logd("---W----")
-      elseif rw == 'R' then
-	 logd("---R----")
-	 delay, hit = SWB:read(tonumber(addr, 16), tonumber(cid)) 
-	 if not hit then
-	    delay = L1:read(tonumber(addr, 16), tonumber(cid))	  
-	 end
-	 -- issue a read to L1 anyway, but do not count in the delay
-	 L1:read(tonumber(addr, 16), tonumber(cid))
-	 logd("---R----")
+      -- local L1 = self.L1_cache l1_cache_list[self.id]
+
+      if mic.op == 'S' then	-- store
+	 delay, hit = self.swb:write(tonumber(mic.o, 16), 0, self.id)
+      elseif mic.op == 'L' then	-- load
+	 delay, hit = self.swb:read(tonumber(mic.i, 16), self.id)
+	 -- issue a read to L1 anyway, but do not count in the delay if SWB hits
+	 local delay2 = self.L1_cache:read(tonumber(mic.i, 16), self.id)
+	 if hit then delay = delay2 end
       end
-      
-      logd('delay', delay)
-      if rw == 'W' or rw == 'R' then
+
+      if mic.op == 'W' or mic.op == 'R' then
 	 delay_cnt = delay_cnt + delay
 	 access_cnt = access_cnt + 1
       end
+
+      self.iidx = self.iidx + 1
+   else
+      -- no inst remains in i-cache
+      self.active = false
    end
+
+   return delay
 end
 
 --[[
@@ -110,12 +102,6 @@ function _M:proceed()
 end
 
 --]]
-
-function _M:exe_inst()
-   local inst = self.icache[self.iidx]
-   
-   
-end
 
 function _M:commit()
    self.spec = true

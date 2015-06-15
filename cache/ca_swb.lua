@@ -46,10 +46,10 @@ local cache = require "cache"
 l1_cache_list = require("config/b64n64a4_b64n1024a4")
 
 
--- the shared write buffer. TODO the read and write functions should
--- override: read will not go to next-level (L1), write will go to
--- next-level on eviction. Neither read nor write will read from L1.
-SWB = cache:new {
+ -- the shared write buffer. TODO the read and write functions should
+ -- override: read will not go to next-level (L1), write will go to
+ -- next-level on eviction. Neither read nor write will read from L1.
+_M = cache:new {
    name = "SWB",
    blk_size = 64,		-- 
    n_blks = 16,			-- size = 64 * 16 = 2^10 = 1K
@@ -64,7 +64,15 @@ SWB = cache:new {
 }
 
 
-SWB.read = 
+function _M:new (obj)
+   obj = obj or {}
+   setmetatable(obj, self)
+   self.__index = self
+
+   return cache:new (self)
+end
+
+_M.read = 
 function (self, addr, cid)
    local tag, index, offset = self:tag(addr), self:index(addr), self:offset(addr)
    logd(string.format("%s R: %x %x %x", 
@@ -105,7 +113,7 @@ function (self, addr, cid)
 end
 
 -- TODO mark the spec field when writing
-SWB.write = 
+_M.write = 
 function (self, addr, val, cid, spec)
    -- local t, idx, off = self:tag(addr), self:index(addr), self:offset(addr)
    local t = self:tag(addr)
@@ -167,7 +175,7 @@ function (self, addr, val, cid, spec)
    return delay, hit
 end
 
-SWB.commit = 
+_M.commit = 
 function (cid)
       for _, set in pairs (self.__sets) do
 	 for _, blk in pairs(set) do
@@ -178,3 +186,6 @@ function (cid)
       end
 end
 
+_M.l1_cache_list = l1_cache_list
+
+SWB = _M

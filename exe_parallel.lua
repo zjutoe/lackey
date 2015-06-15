@@ -12,13 +12,15 @@ local Core = require("core")
 local NUM_CORE = 4
 local cores = {}
 for cid = 1, NUM_CORE do
-   cores[cid] = Core:new{id = cid, swb = SWB, L1_cache = ls_cache_list, icache = {}, iidx = 1}
+   cores[cid] = Core:new{id = cid, swb = SWB,
+			 L1_cache = SWB.l1_cache_list[cid],
+			 icache = {}, iidx = 1}
 end
 
 local g_cid = 0
 
 function micro(m)
-   local icache = cores[g_cid].icache
+   local icache = cores[g_cid].icache -- TODO put this in begin_sb()
    icache[#icache + 1] = m
 end
 
@@ -37,8 +39,7 @@ function begin_issue(issue)
 end
 
 function end_issue()
-
-   -- execute all cores in round-robin way
+   -- execute all cores in Round-Robin
    repeat 
       local exe_end = true
       for cid = 1, NUM_CORE do
@@ -49,7 +50,6 @@ function end_issue()
 	 end      
       end
    until exe_end
-
 end
 
 
@@ -63,3 +63,38 @@ while true do
 
    assert(loadstring(lines))()
 end
+
+local read_hit_total, read_miss_total, write_hit_total, write_miss_total, clk_total = 0,0,0,0,0
+local access_cnt = 0
+
+function summarize(cache_list)
+   for _, c in pairs(cache_list) do
+      c:print_summary()
+
+      read_hit_total = read_hit_total + c.read_hit
+      read_miss_total = read_miss_total + c.read_miss
+      write_hit_total = write_hit_total + c.write_hit
+      write_miss_total = write_miss_total + c.write_miss
+      clk_total = clk_total + c._clk
+   end
+end
+
+clist = {}
+for k, v in pairs(l1_cache_list) do
+   clist[#clist + 1] = v
+end
+clist[#clist + 1] = SWB
+-- clist[#clist + 1] = L2
+
+summarize(clist)
+
+access_cnt = read_hit_total + read_miss_total + write_hit_total + write_miss_total
+
+print("Total read hit/miss:", read_hit_total, read_miss_total, "hit rate:", read_hit_total / (read_hit_total + read_miss_total))
+print("Total write hit/miss:", write_hit_total, write_miss_total, "hit rate:", write_hit_total / (write_hit_total + write_miss_total))
+print("Total clk/access:", clk_total, read_hit_total + write_hit_total, clk_total/(read_hit_total + write_hit_total))
+-- print("Delay/Access:", delay_cnt, access_cnt, delay_cnt/access_cnt)
+print("Inter Core Share/Access:", SWB.inter_core_share, SWB.inter_core_share_captured,
+      SWB.inter_core_share / access_cnt,
+      SWB.inter_core_share_captured / access_cnt)
+print("Line Duplicate/Access:", SWB.line_dup, access_cnt, SWB.line_dup / access_cnt)
