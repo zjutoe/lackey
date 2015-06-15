@@ -63,17 +63,9 @@ function end_issue()
    -- 		      SWB.read_hit, SWB.read_miss))
 end
 
+require "utils"
 
-local BUFSIZE = 2^15		-- 32K
-local f = io.input(arg[1])	-- open input file
-local cc, lc, wc = 0, 0, 0	-- char, line, and word counts
-while true do
-   local lines, rest = f:read(BUFSIZE, "*line")
-   if not lines then break end
-   if rest then lines = lines .. rest .. "\n" end
-
-   assert(loadstring(lines))()
-end
+exec_big_file(arg[1])
 
 local read_hit_total, read_miss_total, write_hit_total, write_miss_total, clk_total = 0,0,0,0,0
 local access_cnt = 0
