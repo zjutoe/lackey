@@ -9,7 +9,6 @@ function __LINE__() return debug.getinfo(2, 'l').currentline end
 -- local logd = print
 local logd = function(...) end
 
-
 require("ca_swb")
 local Core = require("core")
 
@@ -24,13 +23,13 @@ end
 local g_cid = 0
 
 function micro(m)
-   local icache = cores[g_cid].icache -- TODO put this in begin_sb()
-   icache[#icache + 1] = m
+   cores[g_cid]:add_inst(m)
 end
 
 function begin_sb(sb)
    g_cid = sb.cid
    cores[g_cid].active = true
+   cores[g_cid].iidx = 1
 end
 
 function end_sb()
@@ -43,9 +42,9 @@ function begin_issue(issue)
 end
 
 function end_issue()
-   logd('c1  c2  c3  c4')
-   logd(cores[1].active, cores[2].active, cores[3].active, cores[4].active)
-   logd(#(cores[1].icache), #(cores[2].icache), #(cores[3].icache), #(cores[4].icache))
+   -- logd(cores[1].s_cnt, cores[2].s_cnt, cores[3].s_cnt, cores[4].s_cnt)
+   -- logd(cores[1].s_exe, cores[2].s_exe, cores[3].s_exe, cores[4].s_exe)
+   -- logd(cores[1].l_cnt, cores[2].l_cnt, cores[3].l_cnt, cores[4].l_cnt)
 
    -- execute all cores in Round-Robin
    repeat 
@@ -58,6 +57,10 @@ function end_issue()
 	 end      
       end
    until exe_end
+
+   -- logd(string.format("%d/%d : %d/%d",
+   -- 		      SWB.write_hit, SWB.write_miss,
+   -- 		      SWB.read_hit, SWB.read_miss))
 end
 
 

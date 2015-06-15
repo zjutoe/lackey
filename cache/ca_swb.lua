@@ -46,9 +46,9 @@ local cache = require "cache"
 l1_cache_list = require("config/b64n64a4_b64n1024a4")
 
 
- -- the shared write buffer. TODO the read and write functions should
- -- override: read will not go to next-level (L1), write will go to
- -- next-level on eviction. Neither read nor write will read from L1.
+-- the shared write buffer. TODO the read and write functions should
+-- override: read will not go to next-level (L1), write will go to
+-- next-level on eviction. Neither read nor write will read from L1.
 _M = cache:new {
    name = "SWB",
    blk_size = 64,		-- 
@@ -125,6 +125,8 @@ function (self, addr, val, cid, spec)
 
    local rnb_hit = self.rename_buffer[addr]
    if rnb_hit then
+      hit = true
+      self.write_hit = self.write_hit + 1
       rnb_hit[cid] = val
       return self.write_hit_delay, hit	 
    end

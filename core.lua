@@ -46,6 +46,17 @@ end
 
 --]]
 
+function _M:add_inst(inst)
+   local icache = self.icache
+   icache[#icache + 1] = inst
+
+   if inst.op == 'S' then
+      self.s_cnt = self.s_cnt and self.s_cnt + 1 or 0
+   elseif inst.op == 'L' then
+      self.l_cnt = self.l_cnt and self.l_cnt + 1 or 0
+   end
+end
+
 function _M:exe_inst()
    local mic = self.icache[self.iidx]
    local delay = 0
@@ -55,18 +66,20 @@ function _M:exe_inst()
       -- local L1 = self.L1_cache l1_cache_list[self.id]
 
       if mic.op == 'S' then	-- store
+	 self.s_exe = self.s_exe and self.s_exe + 1 or 0
 	 delay, hit = self.swb:write(tonumber(mic.o, 16), 0, self.id)
       elseif mic.op == 'L' then	-- load
+	 self.l_exe = self.l_exe and self.l_exe + 1 or 0
 	 delay, hit = self.swb:read(tonumber(mic.i, 16), self.id)
 	 -- issue a read to L1 anyway, but do not count in the delay if SWB hits
 	 local delay2 = self.L1_cache:read(tonumber(mic.i, 16), self.id)
 	 if hit then delay = delay2 end
       end
 
-      if mic.op == 'W' or mic.op == 'R' then
-	 delay_cnt = delay_cnt + delay
-	 access_cnt = access_cnt + 1
-      end
+      -- if mic.op == 'S' or mic.op == 'L' then
+      -- 	 delay_cnt = delay_cnt + delay
+      -- 	 access_cnt = access_cnt + 1
+      -- end
 
       self.iidx = self.iidx + 1
    else
