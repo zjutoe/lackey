@@ -57,7 +57,9 @@ function _M:add_inst(inst)
    end
 end
 
-function _M:exe_inst()
+function _M:exe_inst(spec)
+   if spec == nil then spec = false end -- speculative execution
+
    local mic = self.icache[self.iidx]
    local delay = 0
 

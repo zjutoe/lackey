@@ -49,11 +49,13 @@ function end_issue()
    -- execute all cores in Round-Robin
    repeat 
       local exe_end = true
+      local spec = false
       for cid = 1, NUM_CORE do
 	 local c = cores[cid]
 	 if c.active then
-	    c:exe_inst()
+	    c:exe_inst(spec)
 	    exe_end = false
+	    spec = true		-- only the 1st active core is non-speculative
 	 end      
       end
    until exe_end
