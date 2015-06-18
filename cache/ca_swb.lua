@@ -171,21 +171,38 @@ function (self, addr, val, cid, spec)
 
    blk.status = 'M'
    blk.from = cid
+   blk.spec = spec
+   blk.valid = true
    logd(string.format("%s 0x%08x", self.name, (blk.tag or 0) + idx))
 
    self._clk = self._clk + delay
    return delay, hit
 end
 
-_M.commit = 
-function (cid)
-      for _, set in pairs (self.__sets) do
-	 for _, blk in pairs(set) do
-	    if blk.from == cid then
-	       blk.spec = false
-	    end
+function _M:commit(cid)
+   for _, set in pairs (self._sets) do
+      for _, blk in pairs(set) do
+	 if blk.from == cid then
+	    blk.spec = false
 	 end
       end
+   end
+end
+
+function _M:discard(cid)
+   logd('SWB discarding output of core', cid)
+   for _, set in pairs (self._sets) do
+      for _, blk in pairs(set) do
+	 if blk.from == cid then
+	    blk.spec = false
+	    blk.valid = false
+	 end
+      end
+   end
+end
+
+function _M:clear_rename_buffer()
+   self.rename_buffer = {}
 end
 
 _M.l1_cache_list = l1_cache_list

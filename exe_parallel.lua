@@ -10,7 +10,7 @@ function __LINE__() return debug.getinfo(2, 'l').currentline end
 local logd = function(...) end
 
 require("ca_swb")
-local spec_read_record = { kill = {} }
+local spec_read_record = { read = {}, kill = {} }
 
 local Core = require("core")
 
@@ -44,10 +44,6 @@ function begin_issue(issue)
 end
 
 function end_issue()
-   -- logd(cores[1].s_cnt, cores[2].s_cnt, cores[3].s_cnt, cores[4].s_cnt)
-   -- logd(cores[1].s_exe, cores[2].s_exe, cores[3].s_exe, cores[4].s_exe)
-   -- logd(cores[1].l_cnt, cores[2].l_cnt, cores[3].l_cnt, cores[4].l_cnt)
-
    -- execute all cores in Round-Robin
    repeat 
       local exe_end = true
@@ -56,19 +52,44 @@ function end_issue()
 	 local c = cores[cid]
 	 if c.active then
 	    c:exe_inst(spec)
+	    -- only the 1st active core is non-speculative
+	    spec = true
+
+	    -- the leading core c finishes exeuction, commit it.
+	    -- FIXME we could commit it earlier, e.g. when the
+	    -- predecessor finishes, the current core could commit all
+	    -- its earlier output.
+	    if not c.active then
+	       SWB:commit(cid)
+	    end
+
+	    -- at least we had one active core
 	    exe_end = false
-	    spec = true		-- only the 1st active core is non-speculative
-	 end      
+	 end
       end
 
-      for cid, _ in pairs(spec_read_record) do
-	 -- invalidate/reset the core, should discard all its output
-	 -- in SWB, and reset the iidx/pc
-	 -- TODO discard output in SWB
+      -- in case a predecessor writes to an addr, which a successor
+      -- speculatively read, the successor should be killed (discard
+      -- its execution results and context). The spec_read_record.kill
+      -- is updated in core.lua
+      for cid, _ in pairs(spec_read_record.kill) do
+	 -- invalidate/reset the core
+	 -- Discard all the core[cid] output in SWB
+	 SWB:discard(cid)
 	 cores[cid].iidx = 1
+	 cores[cid].active = true
+
+	 -- now we have more active cores
+	 exe_end = false
       end
+      spec_read_record.kill = {}
    until exe_end
 
+   spec_read_record.read = {}
+   spec_read_record.kill = {}
+
+   SWB:clear_rename_buffer()
+   
    -- logd(string.format("%d/%d : %d/%d",
    -- 		      SWB.write_hit, SWB.write_miss,
    -- 		      SWB.read_hit, SWB.read_miss))

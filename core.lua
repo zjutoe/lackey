@@ -9,6 +9,7 @@ local string = string
 local bit = require("bit")
 local debug = debug
 local type = type
+local assert = assert
 
 module (...)
 
@@ -60,48 +61,54 @@ end
 function _M:exe_inst(spec)
    if spec == nil then spec = false end -- speculative execution
 
+   assert(self.active)
+
+   -- mic is garanteed not nil
    local mic = self.icache[self.iidx]
    local delay = 0
 
-   if mic then
-      delay = 0
-      -- local L1 = self.L1_cache l1_cache_list[self.id]
+   assert(mic)
+   
+   delay = 0
 
-      if mic.op == 'S' then	-- store
-	 local addr = tonumber(mic.o, 16)
-	 self.s_exe = self.s_exe and self.s_exe + 1 or 0
-	 delay, hit = self.swb:write(addr, 0, self.id)
-	 if self.srr[addr] then
-	    for c, _ in pairs(self.srr[addr]) do
-	       if c ~= self.id then
-		  -- invalidate the core c
-		  logd('invalid core', c)
-		  self.srr.kill[c] = true
-	       end
+   if mic.op == 'S' then	-- store
+      local addr = tonumber(mic.o, 16)
+      self.s_exe = self.s_exe and self.s_exe + 1 or 0
+      delay, hit = self.swb:write(addr, 0, self.id)
+      if self.srr.read[addr] then
+	 for c, _ in pairs(self.srr.read[addr]) do
+	    if c ~= self.id then
+	       -- invalidate the core c
+	       logd('invalid core', c)
+	       self.srr.kill[c] = true
 	    end
 	 end
-      elseif mic.op == 'L' then	-- load
-	 local addr = tonumber(mic.i, 16)
-	 self.l_exe = self.l_exe and self.l_exe + 1 or 0
-	 delay, hit = self.swb:read(addr, self.id)
-	 -- issue a read to L1 anyway, but do not count in the delay if SWB hits
-	 local delay2 = self.L1_cache:read(addr, self.id)
-	 if hit then delay = delay2 end
-
-	 if spec then
-	    -- update the Speculative Read Record (SRR)
-	    if self.srr[addr] == nil then self.srr[addr] = {} end
-	    self.srr[addr][self.id] = true
-	 end
       end
+   elseif mic.op == 'L' then	-- load
+      local addr = tonumber(mic.i, 16)
+      self.l_exe = self.l_exe and self.l_exe + 1 or 0
+      delay, hit = self.swb:read(addr, self.id)
+      -- issue a read to L1 anyway, but do not count in the delay if SWB hits
+      local delay2 = self.L1_cache:read(addr, self.id)
+      if hit then delay = delay2 end
 
-      -- if mic.op == 'S' or mic.op == 'L' then
-      -- 	 delay_cnt = delay_cnt + delay
-      -- 	 access_cnt = access_cnt + 1
-      -- end
+      if spec then
+	 -- update the Speculative Read Record (SRR)
+	 -- FIXME: optimize this by avoiding {}, but use bitfields
+	 if self.srr.read[addr] == nil then self.srr.read[addr] = {} end
+	 self.srr.read[addr][self.id] = true
+      end
+   end
 
-      self.iidx = self.iidx + 1
-   else
+   -- if mic.op == 'S' or mic.op == 'L' then
+   -- 	 delay_cnt = delay_cnt + delay
+   -- 	 access_cnt = access_cnt + 1
+   -- end
+
+   self.iidx = self.iidx + 1
+   -- end
+
+   if not self.icache[self.iidx] then
       -- no inst remains in i-cache
       self.active = false
    end
@@ -135,6 +142,7 @@ end
 
 --]]
 
+-- FIXME should remove this?
 function _M:commit()
    self.spec = true
 end
