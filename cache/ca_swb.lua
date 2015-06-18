@@ -73,7 +73,7 @@ function _M:new (obj)
 end
 
 _M.read = 
-function (self, addr, cid)
+function (self, addr, cid, spec)
    local tag, index, offset = self:tag(addr), self:index(addr), self:offset(addr)
    logd(string.format("%s R: %x %x %x", 
 		      self.name, tag, index, offset))

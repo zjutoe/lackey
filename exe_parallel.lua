@@ -10,12 +10,14 @@ function __LINE__() return debug.getinfo(2, 'l').currentline end
 local logd = function(...) end
 
 require("ca_swb")
+local spec_read_record = { kill = {} }
+
 local Core = require("core")
 
 local NUM_CORE = 4
 local cores = {}
 for cid = 1, NUM_CORE do
-   cores[cid] = Core:new{id = cid, swb = SWB,
+   cores[cid] = Core:new{id = cid, swb = SWB, srr = spec_read_record,
 			 L1_cache = SWB.l1_cache_list[cid],
 			 icache = {}, iidx = 1}
 end
@@ -57,6 +59,13 @@ function end_issue()
 	    exe_end = false
 	    spec = true		-- only the 1st active core is non-speculative
 	 end      
+      end
+
+      for cid, _ in pairs(spec_read_record) do
+	 -- invalidate/reset the core, should discard all its output
+	 -- in SWB, and reset the iidx/pc
+	 -- TODO discard output in SWB
+	 cores[cid].iidx = 1
       end
    until exe_end
 

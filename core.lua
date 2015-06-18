@@ -68,14 +68,31 @@ function _M:exe_inst(spec)
       -- local L1 = self.L1_cache l1_cache_list[self.id]
 
       if mic.op == 'S' then	-- store
+	 local addr = tonumber(mic.o, 16)
 	 self.s_exe = self.s_exe and self.s_exe + 1 or 0
-	 delay, hit = self.swb:write(tonumber(mic.o, 16), 0, self.id)
+	 delay, hit = self.swb:write(addr, 0, self.id)
+	 if self.srr[addr] then
+	    for c, _ in pairs(self.srr[addr]) do
+	       if c ~= self.id then
+		  -- invalidate the core c
+		  logd('invalid core', c)
+		  self.srr.kill[c] = true
+	       end
+	    end
+	 end
       elseif mic.op == 'L' then	-- load
+	 local addr = tonumber(mic.i, 16)
 	 self.l_exe = self.l_exe and self.l_exe + 1 or 0
-	 delay, hit = self.swb:read(tonumber(mic.i, 16), self.id)
+	 delay, hit = self.swb:read(addr, self.id)
 	 -- issue a read to L1 anyway, but do not count in the delay if SWB hits
-	 local delay2 = self.L1_cache:read(tonumber(mic.i, 16), self.id)
+	 local delay2 = self.L1_cache:read(addr, self.id)
 	 if hit then delay = delay2 end
+
+	 if spec then
+	    -- update the Speculative Read Record (SRR)
+	    if self.srr[addr] == nil then self.srr[addr] = {} end
+	    self.srr[addr][self.id] = true
+	 end
       end
 
       -- if mic.op == 'S' or mic.op == 'L' then
