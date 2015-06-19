@@ -36,7 +36,7 @@ function __FILE__() return debug.getinfo(2,'S').source end
 function __LINE__() return debug.getinfo(2, 'l').currentline end
 
 function logd(...)
-   -- print(...)
+   print(...)
 end
 
 local cache = require "cache"
@@ -75,8 +75,7 @@ end
 _M.read = 
 function (self, addr, cid, spec)
    local tag, index, offset = self:tag(addr), self:index(addr), self:offset(addr)
-   logd(string.format("%s R: %x %x %x", 
-		      self.name, tag, index, offset))
+   logd(string.format("%s Read: 0x%08x core %d", self.name, addr, cid))
 
    local hit = false
    local delay = 0
@@ -87,6 +86,7 @@ function (self, addr, cid, spec)
 	 if rnb_hit[pred] then
 	    hit = true
 	    self.read_hit = self.read_hit + 1
+	    logd("SWB read RNB hit")
 	    return self.read_hit_delay, hit
 	 end
       end
@@ -95,8 +95,10 @@ function (self, addr, cid, spec)
    local blk = self:search_block(tag, index)
 
    if not blk.tag or blk.tag ~= tag then -- a miss, do nothing else here. will resort to L1
+      logd("SWB read miss")
       self.read_miss = self.read_miss + 1
    else				-- a hit
+      logd("SWB read hit")
       hit = true
       self.read_hit = self.read_hit + 1
    end
@@ -106,7 +108,7 @@ function (self, addr, cid, spec)
       self.inter_core_share = self.inter_core_share + 1
       if hit then self.inter_core_share_captured = self.inter_core_share_captured + 1 end
    end
-   logd(string.format("%s 0x%08x status: %s", self.name, (blk.tag or 0) + index, blk.status))
+   -- logd(string.format("%s 0x%08x status: %s", self.name, (blk.tag or 0) + index, blk.status))
 
    self._clk = self._clk + delay
    return delay, hit
@@ -115,6 +117,7 @@ end
 -- TODO mark the spec field when writing
 _M.write = 
 function (self, addr, val, cid, spec)
+   logd(string.format("%s Write: 0x%08x core %d", self.name, addr, cid))
    -- local t, idx, off = self:tag(addr), self:index(addr), self:offset(addr)
    local t = self:tag(addr)
    local idx = self:index(addr)
@@ -125,6 +128,7 @@ function (self, addr, val, cid, spec)
 
    local rnb_hit = self.rename_buffer[addr]
    if rnb_hit then
+      logd("SWB write RNB hit")
       hit = true
       self.write_hit = self.write_hit + 1
       rnb_hit[cid] = val
@@ -134,6 +138,7 @@ function (self, addr, val, cid, spec)
    local blk = self:search_block(tag, idx)
 
    if not blk.tag or blk.tag ~= t then -- a miss
+      logd("SWB write miss")
       self.write_miss = self.write_miss + 1
 
       local L1 = l1_cache_list[blk.from or cid]
@@ -147,6 +152,7 @@ function (self, addr, val, cid, spec)
       blk.tag = t      
 
    else -- a hit
+      logd("SWB write hit")
       hit = true      
       self.write_hit = self.write_hit + 1
 
@@ -155,15 +161,14 @@ function (self, addr, val, cid, spec)
    if blk.from and blk.from ~= cid then
       self.inter_core_share = self.inter_core_share + 1
       if hit then
+	 logd("SWB write to rename buffer")
 	 self.inter_core_share_captured = self.inter_core_share_captured + 1
 	 self.line_dup = self.line_dup + 1
 
-	 -- TODO support multiple copies of the same address
-	 if self.rename_buffer[addr] then
-	    self.rename_buffer[addr][cid] = val
-	 else
-	    self.rename_buffer[addr] = {cid = val}
-	 end
+	 -- TODO support multiple copies of the same address - FIXME
+	 -- forgot what this means...
+	 if not self.rename_buffer[addr] then self.rename_buffer[addr] = {} end
+	 self.rename_buffer[addr][cid] = val
       end
    end
 
@@ -173,13 +178,14 @@ function (self, addr, val, cid, spec)
    blk.from = cid
    blk.spec = spec
    blk.valid = true
-   logd(string.format("%s 0x%08x", self.name, (blk.tag or 0) + idx))
+   -- logd(string.format("%s 0x%08x", self.name, (blk.tag or 0) + idx))
 
    self._clk = self._clk + delay
    return delay, hit
 end
 
 function _M:commit(cid)
+   logd("SWB committing output from core", cid)
    for _, set in pairs (self._sets) do
       for _, blk in pairs(set) do
 	 if blk.from == cid then

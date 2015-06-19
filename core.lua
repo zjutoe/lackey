@@ -17,13 +17,13 @@ function __FILE__() return debug.getinfo(2,'S').source end
 function __LINE__() return debug.getinfo(2, 'l').currentline end
 
 function logd(...)
-   -- print(...)
+   print(...)
 end
 
 id = 0				-- init with invalid core id
 
 function _M:new (obj)
-   logd('new')
+   logd('new core')
 
    obj = obj or {}
    setmetatable(obj, self)
@@ -73,6 +73,7 @@ function _M:exe_inst(spec)
 
    if mic.op == 'S' then	-- store
       local addr = tonumber(mic.o, 16)
+      logd("core", self.id, "Store")
       self.s_exe = self.s_exe and self.s_exe + 1 or 0
       delay, hit = self.swb:write(addr, 0, self.id)
       if self.srr.read[addr] then

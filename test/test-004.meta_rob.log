@@ -1,0 +1,16 @@
+begin_issue {size=4}
+  begin_sb{ addr=0x040047ff, cid=1, weight=1}
+    micro { pc=1, op='S', i=16, o=0x04 }
+  end_sb()
+  begin_sb{ addr=0x040048ff, cid=2, weight=1}
+    micro { pc=1, op='L', o=16, i=0x04 }
+  end_sb()
+  begin_sb{ addr=0x040049ff, cid=3, weight=1}
+    micro { pc=1, op='L', o=16, i=0x04 }
+  end_sb()
+  begin_sb{ addr=0x04004aff, cid=4, weight=1}
+    micro { pc=1, op='L', o=16, i=0x04 }
+  end_sb()
+end_issue()
+
+
