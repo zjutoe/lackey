@@ -88,6 +88,7 @@ function end_issue()
       end
    until all_committed
 
+
    spec_read_record.read = {}
    spec_read_record.kill = {}
 

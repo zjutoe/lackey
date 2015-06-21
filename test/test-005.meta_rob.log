@@ -1,10 +1,14 @@
-begin_issue {size=2}
+begin_issue {size=3}
   begin_sb{ addr=0x040047ff, cid=1, weight=1}
     micro { pc=1, op='S', i=16, o=0x04 } -- W: N - N - N
-    micro { pc=1, op='S', i=16, o=0x08 } -- W: N - Y - Y - Y: kill core 2
+      -- micro { pc=1, op='S', i=16, o=0x04 } -- W: N - Y - N - Y
   end_sb()
+    
+  begin_sb{ addr=0x040048ff, cid=3, weight=1}
+    micro { pc=1, op='S', i=16, o=0x04 } -- W: N - Y - N - N
+  end_sb()
+
   begin_sb{ addr=0x040048ff, cid=2, weight=1}
     micro { pc=1, op='L', o=16, i=0x08 } -- R: N - Y - Y: update SRR
   end_sb()
 end_issue()
-

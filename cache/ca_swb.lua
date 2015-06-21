@@ -193,7 +193,7 @@ function _M:commit(cid)
 	    blk.spec = false
 	 end
       end
-   end
+   end   
 end
 
 function _M:discard(cid)
@@ -209,6 +209,7 @@ function _M:discard(cid)
 end
 
 function _M:clear_rename_buffer()
+   logd('SWB merging and clearing rename buffer')   
    self.rename_buffer = {}
 end
 

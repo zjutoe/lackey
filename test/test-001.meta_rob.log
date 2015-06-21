@@ -1,6 +1,6 @@
 begin_issue {size=1}
   begin_sb{ addr=0x040047ff, cid=1, weight=1}
-    micro { pc=1, op='S', o=16, i=0x04 } -- W: No - No - No:  load from L1
+    micro { pc=1, op='S', o=16, i=0x04 } -- W: N - N - N:  load from L1
   end_sb()
 end_issue()
 

@@ -80,7 +80,7 @@ function _M:exe_inst(spec)
 	 for c, _ in pairs(self.srr.read[addr]) do
 	    if c ~= self.id then
 	       -- invalidate the core c
-	       logd('invalid core', c)
+	       logd('invalidate core', c)
 	       self.srr.kill[c] = true
 	    end
 	 end
