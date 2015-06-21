@@ -1,0 +1,13 @@
+begin_issue {size=2}
+  begin_sb{ addr=0x040047ff, cid=1, weight=1}
+    micro { pc=1, op='G', o=44, i=48 }
+    micro { pc=2, op='S', i=16, o=0x08 } -- W: write to RNB
+    micro { pc=1, op='L', o=16, i=0x08 } -- R: Y - N:  RNB hit
+  end_sb()
+
+  begin_sb{ addr=0x040087ff, cid=2, weight=1}
+    micro { pc=2, op='S', i=16, o=0x08 } -- W
+  end_sb()
+  
+end_issue()
+
