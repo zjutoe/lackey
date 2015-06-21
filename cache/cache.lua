@@ -132,7 +132,7 @@ end
 
 -- TODO: optimize by reducing {} number
 function _M:search_block(tag, index)
-   -- logd(self.name..' S', tag, index)
+   logd(self.name..' Search', tag, index)
 
    local block = nil
 

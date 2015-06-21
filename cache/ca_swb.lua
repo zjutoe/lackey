@@ -114,7 +114,6 @@ function (self, addr, cid, spec)
    return delay, hit
 end
 
--- TODO mark the spec field when writing
 _M.write = 
 function (self, addr, val, cid, spec)
    -- local t, idx, off = self:tag(addr), self:index(addr), self:offset(addr)
@@ -144,6 +143,7 @@ function (self, addr, val, cid, spec)
 
       local L1 = l1_cache_list[blk.from or cid]
       -- dirty block, need to write back to next level cache
+      -- FIXME in case of dirty and spec, we should not evict it, but have to pause
       if blk.status and  blk.status == 'M' and not blk.spec then
 	 local write_back_addr = bit.bor(blk.tag, idx)
 	 delay = delay + L1:write(write_back_addr, 0, blk.from or cid)

@@ -73,7 +73,7 @@ function _M:exe_inst(spec)
 
    if mic.op == 'S' then	-- store
       local addr = tonumber(mic.o, 16)
-      logd("core", self.id, "Store")
+      logd("core", self.id, "Store", addr, spec and 'spec' or '')
       self.s_exe = self.s_exe and self.s_exe + 1 or 0
       delay, hit = self.swb:write(addr, 0, self.id)
       if self.srr.read[addr] then
@@ -87,6 +87,7 @@ function _M:exe_inst(spec)
       end
    elseif mic.op == 'L' then	-- load
       local addr = tonumber(mic.i, 16)
+      logd("core", self.id, "Load", addr, spec and 'spec' or '')
       self.l_exe = self.l_exe and self.l_exe + 1 or 0
       delay, hit = self.swb:read(addr, self.id)
       -- issue a read to L1 anyway, but do not count in the delay if SWB hits
@@ -98,6 +99,7 @@ function _M:exe_inst(spec)
 	 -- FIXME: optimize this by avoiding {}, but use bitfields
 	 if self.srr.read[addr] == nil then self.srr.read[addr] = {} end
 	 self.srr.read[addr][self.id] = true
+	 logd('srr update', addr, self.id)
       end
    end
 

@@ -23,6 +23,7 @@ for cid = 1, NUM_CORE do
 end
 
 local g_cid = 0
+local issue_size = 0
 
 function micro(m)
    cores[g_cid]:add_inst(m)
@@ -41,6 +42,7 @@ function begin_issue(issue)
    for _, c in ipairs(cores) do
       c.icache = {}
    end
+   issue_size = issue.size
 end
 
 function end_issue()
@@ -49,7 +51,7 @@ function end_issue()
    repeat
       logd('----')
       local exe_end = true
-      for cid = 1, NUM_CORE do
+      for cid = 1, issue_size do
 	 local c = cores[cid]
 	 if c.active then
 	    -- only the 1st active core is non-speculative
@@ -59,21 +61,17 @@ function end_issue()
 	    -- at least we had one active core
 	    exe_end = false
 	 end
-
-	 -- the leading core c finishes exeuction, commit it.
-	 -- FIXME we could commit it earlier, e.g. when the
-	 -- predecessor finishes, the current core could commit all
-	 -- its earlier output.
-	 if cid == leading_core and not c.active then
-	    SWB:commit(cid)
-	    leading_core = leading_core + 1
-	 end
       end
 
-      logd('srr:')
-      for cid, _ in pairs(spec_read_record.kill) do
-	 logd('  ', cid, _)
+      -- the leading core c finishes exeuction, commit it.
+      -- FIXME we could commit it earlier, e.g. when the
+      -- predecessor finishes, the current core could commit all
+      -- its earlier output.
+      if leading_core <= issue_size and not cores[leading_core].active then
+	 SWB:commit(leading_core)
+	 leading_core = leading_core + 1
       end
+
       -- in case a predecessor writes to an addr, which a successor
       -- speculatively read, the successor should be killed (discard
       -- its execution results and context). The spec_read_record.kill
