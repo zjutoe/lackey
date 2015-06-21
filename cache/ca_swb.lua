@@ -75,7 +75,7 @@ end
 _M.read = 
 function (self, addr, cid, spec)
    local tag, index, offset = self:tag(addr), self:index(addr), self:offset(addr)
-   logd(string.format("%s Read: 0x%08x core %d", self.name, addr, cid))
+   logd(string.format("%s Read: 0x%08x tag %x core %d", self.name, addr, tag, cid))
 
    local hit = false
    local delay = 0
@@ -117,11 +117,12 @@ end
 -- TODO mark the spec field when writing
 _M.write = 
 function (self, addr, val, cid, spec)
-   logd(string.format("%s Write: 0x%08x core %d", self.name, addr, cid))
    -- local t, idx, off = self:tag(addr), self:index(addr), self:offset(addr)
    local t = self:tag(addr)
    local idx = self:index(addr)
    local off = self:offset(addr)
+
+   logd(string.format("%s Write: 0x%08x tag %x core %d", self.name, addr, t, cid))
 
    local hit = false
    local delay = 0
@@ -135,7 +136,7 @@ function (self, addr, val, cid, spec)
       return self.write_hit_delay, hit	 
    end
 
-   local blk = self:search_block(tag, idx)
+   local blk = self:search_block(t, idx)
 
    if not blk.tag or blk.tag ~= t then -- a miss
       logd("SWB write miss")
