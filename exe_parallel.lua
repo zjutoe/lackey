@@ -48,28 +48,17 @@ end
 function end_issue()
    -- execute all cores in Round-Robin
    local leading_core = 1
+   local all_committed = false
    repeat
-      logd('----')
-      local exe_end = true
+      logd('--para exe--')
+
       for cid = 1, issue_size do
 	 local c = cores[cid]
 	 if c.active then
 	    -- only the 1st active core is non-speculative
 	    local spec = cid ~= leading_core
 	    c:exe_inst(spec)
-
-	    -- at least we had one active core
-	    exe_end = false
 	 end
-      end
-
-      -- the leading core c finishes exeuction, commit it.
-      -- FIXME we could commit it earlier, e.g. when the
-      -- predecessor finishes, the current core could commit all
-      -- its earlier output.
-      if leading_core <= issue_size and not cores[leading_core].active then
-	 SWB:commit(leading_core)
-	 leading_core = leading_core + 1
       end
 
       -- in case a predecessor writes to an addr, which a successor
@@ -87,7 +76,17 @@ function end_issue()
 	 exe_end = false
       end
       spec_read_record.kill = {}
-   until exe_end
+
+      -- the leading core c finishes exeuction, commit it.
+      -- TODO we could commit it earlier, e.g. when the
+      -- predecessor finishes, the current core could commit all
+      -- its earlier output.
+      if leading_core <= issue_size and not cores[leading_core].active then
+	 SWB:commit(leading_core)
+	 if leading_core == issue_size then all_committed = true end
+	 leading_core = leading_core + 1
+      end
+   until all_committed
 
    spec_read_record.read = {}
    spec_read_record.kill = {}
