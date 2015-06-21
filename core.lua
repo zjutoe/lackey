@@ -78,8 +78,8 @@ function _M:exe_inst(spec)
       delay, hit = self.swb:write(addr, 0, self.id)
       if self.srr.read[addr] then
 	 for c, _ in pairs(self.srr.read[addr]) do
-	    if c ~= self.id then
-	       -- invalidate the core c
+	    -- only a predecessor could invalidate a core
+	    if c > self.id then
 	       logd('invalidate core', c)
 	       self.srr.kill[c] = true
 	    end

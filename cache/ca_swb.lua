@@ -208,6 +208,13 @@ function _M:discard(cid)
    end
 end
 
+-- NOTE: since we don't really care about the data contained in SWB,
+-- we will simply clear the rename buffer, and assume the final
+-- version of each datum is correctly updated in the SWB. 
+-- 
+-- TODO: A real simulator should take care of the data in rename
+-- buffer, and put the final version of each datum (i.e. output from
+-- the latest committed core) in SWB before clearing the rename buffer
 function _M:clear_rename_buffer()
    logd('SWB merging and clearing rename buffer')   
    self.rename_buffer = {}
