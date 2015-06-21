@@ -6,8 +6,8 @@
 function __FILE__() return debug.getinfo(2,'S').source end
 function __LINE__() return debug.getinfo(2, 'l').currentline end
 
-local logd = print
--- local logd = function(...) end
+-- local logd = print
+local logd = function(...) end
 
 require("ca_swb")
 local spec_read_record = { read = {}, kill = {} }

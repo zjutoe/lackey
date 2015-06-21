@@ -36,7 +36,7 @@ function __FILE__() return debug.getinfo(2,'S').source end
 function __LINE__() return debug.getinfo(2, 'l').currentline end
 
 function logd(...)
-   print(...)
+   -- print(...)
 end
 
 local cache = require "cache"
