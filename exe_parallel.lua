@@ -6,8 +6,8 @@
 function __FILE__() return debug.getinfo(2,'S').source end
 function __LINE__() return debug.getinfo(2, 'l').currentline end
 
--- local logd = print
-local logd = function(...) end
+local logd = print
+-- local logd = function(...) end
 
 require("ca_swb")
 local spec_read_record = { read = {}, kill = {} }
@@ -45,29 +45,35 @@ end
 
 function end_issue()
    -- execute all cores in Round-Robin
-   repeat 
+   local leading_core = 1
+   repeat
+      logd('----')
       local exe_end = true
-      local spec = false
       for cid = 1, NUM_CORE do
 	 local c = cores[cid]
 	 if c.active then
-	    c:exe_inst(spec)
 	    -- only the 1st active core is non-speculative
-	    spec = true
-
-	    -- the leading core c finishes exeuction, commit it.
-	    -- FIXME we could commit it earlier, e.g. when the
-	    -- predecessor finishes, the current core could commit all
-	    -- its earlier output.
-	    if not c.active then
-	       SWB:commit(cid)
-	    end
+	    local spec = cid ~= leading_core
+	    c:exe_inst(spec)
 
 	    -- at least we had one active core
 	    exe_end = false
 	 end
+
+	 -- the leading core c finishes exeuction, commit it.
+	 -- FIXME we could commit it earlier, e.g. when the
+	 -- predecessor finishes, the current core could commit all
+	 -- its earlier output.
+	 if cid == leading_core and not c.active then
+	    SWB:commit(cid)
+	    leading_core = leading_core + 1
+	 end
       end
 
+      logd('srr:')
+      for cid, _ in pairs(spec_read_record.kill) do
+	 logd('  ', cid, _)
+      end
       -- in case a predecessor writes to an addr, which a successor
       -- speculatively read, the successor should be killed (discard
       -- its execution results and context). The spec_read_record.kill
