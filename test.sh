@@ -10,6 +10,7 @@ MEM_REF_LOG="$TFOLD/mtrace".log
 COHERENCE_LOG="$TFOLD/ca_coherence".log
 SHARED_L1_LOG="$TFOLD/ca_shared_L1".log
 SWB_LOG="$TFOLD/ca_swb".log
+EXE_PARA_LOG="$TFOLD/exe_para".log
 
 
 export LUA_PATH="./cache/?.lua;./cache/config/?.lua;;"
@@ -21,3 +22,4 @@ luajit mtrace.lua $META_ROB_LOG >$MEM_REF_LOG
 luajit cache/ca_coherence.lua < $MEM_REF_LOG > $COHERENCE_LOG
 luajit cache/ca_shared_L1.lua < $MEM_REF_LOG > $SHARED_L1_LOG
 luajit cache/test_swb.lua < $MEM_REF_LOG > $SWB_LOG
+luajit exe_parallel.lua < $MEM_REF_LOG > $EXE_PARA_LOG
