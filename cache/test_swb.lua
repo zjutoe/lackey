@@ -136,4 +136,3 @@ print("Delay/Access:", delay_cnt, access_cnt, delay_cnt/access_cnt)
 print("Inter Core Share/Access:", SWB.inter_core_share, SWB.inter_core_share_captured,
       SWB.inter_core_share / access_cnt,
       SWB.inter_core_share_captured / access_cnt)
-print("Line Duplicate/Access:", SWB.line_dup, access_cnt, SWB.line_dup / access_cnt)

@@ -58,7 +58,6 @@ _M = cache:new {
 
    inter_core_share = 0,    -- statistic data: inter core shared data 
    inter_core_share_captured = 0, -- statistic data: captured inter core shared data
-   line_dup = 0,
 
    rename_buffer = {}
 }
@@ -164,7 +163,6 @@ function (self, addr, val, cid, spec)
       if hit then
 	 logd("SWB write to rename buffer")
 	 self.inter_core_share_captured = self.inter_core_share_captured + 1
-	 self.line_dup = self.line_dup + 1
 
 	 -- TODO support multiple copies of the same address - FIXME
 	 -- forgot what this means...
