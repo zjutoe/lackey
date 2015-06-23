@@ -1,7 +1,15 @@
 -- Usage: 
+-- refer to exe_parallel.sh
 
 -- input: *.meta_rob.log
--- output: 
+-- output: SWB and L1 performance statistics
+
+-- the benefit of SWB (Shared Write Buffer), SRR (Speculative Read
+-- Record) and RNB (ReName Buffer). Data to collect:
+
+-- SWB: reduced inter-core data coherence and passing; increased logical capacity (reduced dupilication);
+-- SRR + RNB: memory renaming, speculative write & read (avoided stall, i.e. overlapped execution), and other benefits the paper ARB mentioned;
+
 
 function __FILE__() return debug.getinfo(2,'S').source end
 function __LINE__() return debug.getinfo(2, 'l').currentline end
