@@ -53,11 +53,23 @@ function begin_issue(issue)
    issue_size = issue.size
 end
 
+local sum_cycles = 0
+local sum_insts = 0
+local sum_cycles_discarded = 0
+
 function end_issue()
    -- execute all cores in Round-Robin
    local leading_core = 1
    local all_committed = false
+   local cycles = 0
+   local cycles_discarded = 0
+
+   for cid = 1, issue_size do
+      sum_insts = sum_insts + cores[cid]:get_blk_size()
+   end
+   
    repeat
+      cycles = cycles + 1
       logd('--para exe--')
 
       for cid = 1, issue_size do
@@ -77,8 +89,10 @@ function end_issue()
 	 -- invalidate/reset the core
 	 -- Discard all the core[cid] output in SWB
 	 SWB:discard(cid)
-	 cores[cid].iidx = 1
-	 cores[cid].active = true
+	 local core = cores[cid]
+	 cycles_discarded = cycles_discarded + core:get_pc() - 1
+	 core.iidx = 1
+	 core.active = true
 
 	 -- now we have more active cores
 	 exe_end = false
@@ -101,7 +115,9 @@ function end_issue()
    spec_read_record.kill = {}
 
    SWB:clear_rename_buffer()
-   
+
+   sum_cycles = sum_cycles + cycles
+   sum_cycles_discarded = sum_cycles_discarded + cycles_discarded
    -- logd(string.format("%d/%d : %d/%d",
    -- 		      SWB.write_hit, SWB.write_miss,
    -- 		      SWB.read_hit, SWB.read_miss))
@@ -144,4 +160,4 @@ print("Total clk/access:", clk_total, read_hit_total + write_hit_total, clk_tota
 print("Inter Core Share/Access:", SWB.inter_core_share, SWB.inter_core_share_captured,
       SWB.inter_core_share / access_cnt,
       SWB.inter_core_share_captured / access_cnt)
-print("Line Duplicate/Access:", SWB.line_dup, access_cnt, SWB.line_dup / access_cnt)
+print("insts:cycles:cycles_discarded", sum_insts, sum_cycles, sum_cycles_discarded)

@@ -32,21 +32,30 @@ function _M:new (obj)
    return obj
 end
 
---[[
-
-function _M:issue_code_block(blk)
-   self.exe = blk
-   self.exe_idx = 1	      -- set to the 1st instruction in the blk
-   self.active = true	      -- not finish executing yet
-   self.spec = true	      -- assume speculative execution
+-- function _M:issue_code_block(blk)
+--    self.exe = blk
+--    self.exe_idx = 1	      -- set to the 1st instruction in the blk
+--    self.active = true	      -- not finish executing yet
+--    self.spec = true	      -- assume speculative execution
    
-   local rw, addr, cid, pc = string.match(blk[1], "(%a) 0x(%x+) (%d) (%d)")
-   self.pc = pc	     -- Program Conter, a.k.a IP (Instruction Pointer)
+--    local rw, addr, cid, pc = string.match(blk[1], "(%a) 0x(%x+) (%d) (%d)")
+--    self.pc = pc	     -- Program Conter, a.k.a IP (Instruction Pointer)
+-- end
+
+function _M:get_pc()
+   -- return self.iidx
+   local inst = self.icache[self.iidx]
+   if not inst then
+      inst = self.icache[self.iidx - 1]
+      return inst.pc + 1
+   end
+   return inst.pc
 end
 
-
---]]
-
+function _M:get_blk_size()
+   return #self.icache
+end
+      
 function _M:add_inst(inst)
    local icache = self.icache
    icache[#icache + 1] = inst
