@@ -21,6 +21,9 @@ function logd(...)
 end
 
 id = 0				-- init with invalid core id
+spec_read_cnt = 0
+s_cnt = 0
+l_cnt = 0
 
 function _M:new (obj)
    logd('new core')
@@ -108,6 +111,7 @@ function _M:exe_inst(spec)
 	 -- FIXME: optimize this by avoiding {}, but use bitfields
 	 if self.srr.read[addr] == nil then self.srr.read[addr] = {} end
 	 self.srr.read[addr][self.id] = true
+	 self.spec_read_cnt = self.spec_read_cnt + 1
 	 logd('srr update', addr, self.id)
       end
    end
@@ -157,5 +161,14 @@ end
 -- FIXME should remove this?
 function _M:commit()
    self.spec = true
+end
+
+function _M:reset()
+   self.iidx = 1
+   self.active = true
+   
+   self.spec_read_cnt = 0
+   self.l_cnt = 0
+   self.s_cnt = 0
 end
 

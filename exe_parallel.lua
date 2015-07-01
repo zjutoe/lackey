@@ -39,8 +39,9 @@ end
 
 function begin_sb(sb)
    g_cid = sb.cid
-   cores[g_cid].active = true
-   cores[g_cid].iidx = 1
+   cores[g_cid]:reset()
+   -- cores[g_cid].active = true
+   -- cores[g_cid].iidx = 1
 end
 
 function end_sb()
@@ -56,6 +57,10 @@ end
 local sum_cycles = 0
 local sum_insts = 0
 local sum_cycles_discarded = 0
+local sum_spec_read_fail = 0
+local sum_spec_read_succ = 0
+local sum_load = 0
+
 
 function end_issue()
    -- execute all cores in Round-Robin
@@ -91,8 +96,8 @@ function end_issue()
 	 SWB:discard(cid)
 	 local core = cores[cid]
 	 cycles_discarded = cycles_discarded + core:get_pc() - 1
-	 core.iidx = 1
-	 core.active = true
+	 sum_spec_read_fail = sum_spec_read_fail + core.spec_read_cnt
+	 core:reset()
 
 	 -- now we have more active cores
 	 exe_end = false
@@ -110,6 +115,11 @@ function end_issue()
       end
    until all_committed
 
+   for cid = 1, issue_size do
+      local c = cores[cid]
+      sum_spec_read_succ = sum_spec_read_succ + c.spec_read_cnt
+      sum_load = sum_load + c.l_cnt
+   end
 
    spec_read_record.read = {}
    spec_read_record.kill = {}
@@ -118,6 +128,7 @@ function end_issue()
 
    sum_cycles = sum_cycles + cycles
    sum_cycles_discarded = sum_cycles_discarded + cycles_discarded
+
    -- logd(string.format("%d/%d : %d/%d",
    -- 		      SWB.write_hit, SWB.write_miss,
    -- 		      SWB.read_hit, SWB.read_miss))
@@ -161,3 +172,4 @@ print("Inter Core Share/Access:", SWB.inter_core_share, SWB.inter_core_share_cap
       SWB.inter_core_share / access_cnt,
       SWB.inter_core_share_captured / access_cnt)
 print("insts:cycles:cycles_discarded", sum_insts, sum_cycles, sum_cycles_discarded)
+print("load: all/spec_read_succ/spec_read_fail", sum_load, sum_spec_read_succ, sum_spec_read_fail)
